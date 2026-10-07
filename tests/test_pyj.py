@@ -106,6 +106,23 @@ class TestTranspile(unittest.TestCase):
             with self.assertRaises(PyjSyntaxError, msg=src):
                 transpile(src)
 
+    def test_error_messages(self):
+        cases = {
+            "if x { a": "block '{' was never closed",
+            "x = (1": "'(' was never closed",
+            "}": "unmatched '}'",
+            "x = (1]": "closing ']' does not match opening '('",
+            "x = (1; 2)": "';' is not allowed inside brackets",
+            "a = !b": "'!' is not supported; use 'not'",
+            "s = 'abc": "unterminated string literal",
+            "s = 'abc\nx'": "unterminated string literal (newline in a single-quoted string)",
+            "x = $": "invalid character '$'",
+        }
+        for src, msg in cases.items():
+            with self.assertRaises(PyjSyntaxError, msg=src) as cm:
+                transpile(src)
+            self.assertEqual(cm.exception.msg, msg)
+
     def test_cli_and_import_hook(self):
         with tempfile.TemporaryDirectory() as d:
             with open(os.path.join(d, "helper.pyj"), "w", encoding="utf-8") as f:

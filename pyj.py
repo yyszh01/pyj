@@ -1,12 +1,14 @@
-"""pyj: 用花括号和分号书写 Python，转译为标准 Python 代码。
+"""pyj: write Python with braces and semicolons, transpiled to standard Python.
 
-语法规则：
-  * 代码块用 { } 包裹，不再依赖缩进；冒号可写可不写：
+Syntax:
+  * Blocks are wrapped in { } instead of relying on indentation; the colon is optional:
         if x > 0 { print(x) } else if x < 0 { print(-x) } else { pass }
-  * 语句之间用 ; 分隔；换行处如果语句明显已经结束，也会自动断句（类似 JS 的 ASI）。
-  * 括号内、或行尾是运算符/逗号时，换行会被忽略，可以随意折行。
-  * `else if` 是 `elif` 的语法糖。
-  * 字典/集合字面量照常使用 { }：只有出现在复合语句头部末尾的 { 才会被识别为代码块。
+  * Statements are separated by ;. A newline also ends a statement when the
+    statement is clearly complete (similar to JavaScript's ASI).
+  * Newlines inside brackets, or after a trailing operator or comma, are ignored.
+  * `else if` is shorthand for `elif`.
+  * Dict and set literals use { } as usual: only a { that ends a compound
+    statement header opens a block.
 """
 
 import bisect
@@ -16,7 +18,7 @@ import marshal
 import os
 import sys
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 __all__ = ["transpile", "compile_pyj", "run_file", "PyjSyntaxError", "install_import_hook"]
 
@@ -145,9 +147,9 @@ class Lexer:
                     if src.startswith(op, start):
                         break
                 else:
-                    raise self.error(f"无法识别的字符 {ch!r}", start)
+                    raise self.error(f"invalid character {ch!r}", start)
                 if op == "!":
-                    raise self.error("不支持单独的 '!'，请使用 not", start)
+                    raise self.error("'!' is not supported; use 'not'", start)
                 self.pos = start + len(op)
                 kind = "OP"
             line, col = self.loc(start)
@@ -167,7 +169,7 @@ class Lexer:
         self.pos = p
 
     def scan_string(self, q, prefix):
-        """q 指向开头引号；扫描结束后 self.pos 指向字符串之后。"""
+        """q points at the opening quote; afterwards self.pos is just past the string."""
         src, n = self.src, len(self.src)
         quote = src[q]
         triple = src.startswith(quote * 3, q)
@@ -176,7 +178,7 @@ class Lexer:
         is_f = "f" in prefix or "t" in prefix
         while True:
             if p >= n:
-                raise self.error("字符串没有结束", q)
+                raise self.error("unterminated string literal", q)
             c = src[p]
             if c == "\\":
                 p += 2
@@ -184,7 +186,7 @@ class Lexer:
                 self.pos = p + len(delim)
                 return
             elif c == "\n" and not triple:
-                raise self.error("单行字符串中出现换行", q)
+                raise self.error("unterminated string literal (newline in a single-quoted string)", q)
             elif is_f and c == "{":
                 if src.startswith("{{", p):
                     p += 2
@@ -194,7 +196,7 @@ class Lexer:
                 p += 1
 
     def scan_fexpr(self, p):
-        """扫描 f-string 中 {...} 的表达式部分，返回 } 之后的位置。"""
+        """Scan the expression part of an f-string {...}; return the position after the closing }."""
         src, n = self.src, len(self.src)
         depth = 1
         while p < n:
@@ -219,7 +221,7 @@ class Lexer:
                     return p
             else:
                 p += 1
-        raise self.error("f-string 中的 { 没有闭合", p)
+        raise self.error("'{' was never closed in f-string", p)
 
 
 # ---------------------------------------------------------------- 转译
@@ -263,7 +265,7 @@ class Transpiler:
     # -- 输出
 
     def render(self, toks):
-        """拼接记号，返回 (文本, 每个记号在文本中的位置)。"""
+        """Join tokens; return (text, position of each token within the text)."""
         parts, spans = [], []
         col = 0
         prev = None
@@ -354,7 +356,7 @@ class Transpiler:
             if tok.kind == "OP":
                 if text == ";":
                     if self.brackets:
-                        raise self.error("括号内不能出现 ';'", tok)
+                        raise self.error("';' is not allowed inside brackets", tok)
                     self.flush()
                 elif text == "{":
                     if self.opens_block():
@@ -369,13 +371,13 @@ class Transpiler:
                     want = {")": "(", "]": "[", "}": "{"}[text]
                     if self.brackets:
                         if self.brackets[-1].text != want:
-                            raise self.error(f"'{text}' 与 '{self.brackets[-1].text}' 不匹配", tok)
+                            raise self.error(f"closing '{text}' does not match opening '{self.brackets[-1].text}'", tok)
                         self.brackets.pop()
                         self.stmt.append(tok)
                     elif text == "}" and self.blocks:
                         self.close_block(tok)
                     else:
-                        raise self.error(f"多余的 '{text}'", tok)
+                        raise self.error(f"unmatched '{text}'", tok)
                 else:
                     self.stmt.append(tok)
             elif (tok.kind == "NAME" and text == "else" and not self.stmt
@@ -388,9 +390,9 @@ class Transpiler:
             i += 1
 
         if self.brackets:
-            raise self.error(f"'{self.brackets[-1].text}' 没有闭合", self.brackets[-1])
+            raise self.error(f"'{self.brackets[-1].text}' was never closed", self.brackets[-1])
         if self.blocks:
-            raise self.error("代码块 '{' 没有闭合", self.blocks[-1][0])
+            raise self.error("block '{' was never closed", self.blocks[-1][0])
         self.flush()
 
         gen = "\n".join(self.out) + "\n"
@@ -412,7 +414,7 @@ def _line_starts(text):
 
 
 class SourceMap:
-    """把生成代码中的位置映射回 .pyj 源码中的位置。"""
+    """Maps positions in the generated code back to positions in the .pyj source."""
 
     def __init__(self, gen, src, spans):
         spans.sort()
@@ -440,7 +442,7 @@ class SourceMap:
         return se
 
     def map(self, lineno, col, end=False, byte_col=True):
-        """生成代码的 (行号, 列) -> 源码的 (行号, 列)。列默认是 UTF-8 字节偏移（AST 的约定）。"""
+        """Generated (lineno, col) -> source (lineno, col). Columns are UTF-8 byte offsets by default (the AST convention)."""
         if lineno < 1 or lineno > len(self.gen_starts):
             return lineno, col
         s, line = self._line(self.gen, self.gen_starts, lineno)
@@ -456,12 +458,12 @@ class SourceMap:
 
 
 def transpile(src, filename="<pyj>"):
-    """把 pyj 源码转成标准 Python 源码。"""
+    """Transpile pyj source code to standard Python source code."""
     return Transpiler(src, filename).run()[0]
 
 
 def compile_pyj(src, filename="<pyj>", optimize=-1):
-    """把 pyj 源码编译成 code 对象；报错和 traceback 的行号、列号都指向 pyj 源码。"""
+    """Compile pyj source to a code object whose error and traceback positions point to the pyj source."""
     import ast
     import linecache
 
@@ -498,7 +500,7 @@ def _map_syntax_error(e, smap, src, filename):
 # ---------------------------------------------------------------- import 钩子
 
 class PyjLoader(importlib.machinery.SourceFileLoader):
-    """加载 .pyj 模块；编译结果缓存在 __pycache__/<name>.pyj.<tag>.pyc。"""
+    """Loads .pyj modules; compiled code is cached in __pycache__/<name>.pyj.<tag>.pyc."""
 
     def get_code(self, fullname):
         path = self.get_filename(fullname)
@@ -537,7 +539,7 @@ _FINGERPRINT = None
 
 
 def _fingerprint():
-    """pyj.py 本身变了，缓存也要失效。"""
+    """Cache key component: the cache is invalidated when pyj.py itself changes."""
     global _FINGERPRINT
     if _FINGERPRINT is None:
         try:
@@ -549,7 +551,7 @@ def _fingerprint():
 
 
 def install_import_hook():
-    """安装后，sys.path 中所有 .pyj 文件都能直接 import（包括包里的 __init__.pyj）。"""
+    """Make every .pyj file on sys.path importable (including packages with __init__.pyj)."""
     if any(getattr(h, "_pyj", False) for h in sys.path_hooks):
         return
     from importlib._bootstrap_external import _get_supported_file_loaders
@@ -561,7 +563,7 @@ def install_import_hook():
 
 
 def _startup():
-    """由 .pth 文件在每个 Python 进程启动时调用。"""
+    """Called by the .pth file at startup of every Python process."""
     install_import_hook()
     argv = sys.argv
     if argv and argv[0].endswith(".pyj") and os.path.isfile(argv[0]):
@@ -584,7 +586,7 @@ def _startup():
 # ---------------------------------------------------------------- 运行
 
 def run_file(path, args=()):
-    """像 `python path` 一样把 .pyj 文件作为 __main__ 运行。"""
+    """Run a .pyj file as __main__, like `python path` does for .py files."""
     import builtins
     import traceback
     import types
@@ -639,8 +641,8 @@ def install():
     here = os.path.dirname(os.path.abspath(__file__))
     with open(pth, "w", encoding="utf-8") as f:
         f.write(f"{here}\nimport pyj; pyj._startup()\n")
-    print(f"已安装: {pth}")
-    print("现在可以直接 `python3 app.pyj` 运行，任何 Python 程序都能 import .pyj 模块。")
+    print(f"Installed: {pth}")
+    print("You can now run `python app.pyj` directly, and any Python program can import .pyj modules.")
     return 0
 
 
@@ -650,17 +652,17 @@ def uninstall():
         pth = os.path.join(d, PTH_NAME)
         if os.path.exists(pth):
             os.remove(pth)
-            print(f"已删除: {pth}")
+            print(f"Removed: {pth}")
             removed = True
     if not removed:
-        print("没有找到已安装的 pyj")
+        print("pyj is not installed")
     return 0
 
 
 # ---------------------------------------------------------------- 命令行
 
 def _print_syntax_error(e):
-    print(f"{e.filename}:{e.lineno}:{e.offset}: 语法错误: {e.msg}", file=sys.stderr)
+    print(f"{e.filename}:{e.lineno}:{e.offset}: SyntaxError: {e.msg}", file=sys.stderr)
     if e.text:
         print("    " + e.text, file=sys.stderr)
         print("    " + " " * (e.offset - 1) + "^", file=sys.stderr)
@@ -673,16 +675,16 @@ def main(argv=None):
     if argv and argv[0].endswith(".pyj"):
         return run_file(argv[0], argv[1:])     # pyj app.pyj ... 等同 pyj run app.pyj ...
 
-    parser = argparse.ArgumentParser(prog="pyj", description="用花括号书写 Python")
+    parser = argparse.ArgumentParser(prog="pyj", description="Write Python with braces")
     sub = parser.add_subparsers(dest="cmd", required=True)
-    p_run = sub.add_parser("run", help="转译并运行 .pyj 文件")
+    p_run = sub.add_parser("run", help="transpile and run a .pyj file")
     p_run.add_argument("file")
     p_run.add_argument("args", nargs=argparse.REMAINDER)
-    p_build = sub.add_parser("build", help="转译为 .py 文件")
+    p_build = sub.add_parser("build", help="transpile a .pyj file to .py")
     p_build.add_argument("file")
-    p_build.add_argument("-o", "--output", help="输出文件，默认同名 .py；'-' 表示标准输出")
-    sub.add_parser("install", help="安装到 site-packages：之后所有 Python 进程自动支持 .pyj")
-    sub.add_parser("uninstall", help="卸载自动支持")
+    p_build.add_argument("-o", "--output", help="output file (default: same name with .py; '-' for stdout)")
+    sub.add_parser("install", help="install into site-packages so every Python process supports .pyj")
+    sub.add_parser("uninstall", help="remove the automatic .pyj support")
     args = parser.parse_args(argv)
 
     if args.cmd == "install":
