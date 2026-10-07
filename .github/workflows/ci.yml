@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    name: ${{ matrix.os }} / Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Unit tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Run the single file without installing
+        run: python pyj.py run examples/demo.pyj
+
+      - name: Transparent execution after pip install
+        working-directory: examples
+        run: |
+          python -m pip install ..
+          python demo.pyj
+          python -c "import demo"
+          pyj build demo.pyj -o -
