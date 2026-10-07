@@ -43,6 +43,25 @@ pyj build app.pyj                  # 转成 app.py
 - 编译结果缓存在 `__pycache__/<模块名>.pyj.cpython-XY.pyc`；源文件或 pyj 本身改动后会自动失效。
 - `python app.pyj` 的原理：Python 启动时会执行 site-packages 中的 `pyj_autoload.pth`，它发现启动的是 `.pyj` 文件，就把进程替换成 `python -m pyj app.pyj`（Windows 上是启动子进程），解释器参数原样保留。
 
+#### 遇到 `error: externally-managed-environment`
+
+Debian、Ubuntu 等发行版禁止直接用 pip 往系统自带的 Python 里装包（[PEP 668](https://peps.python.org/pep-0668/)）。任选一种办法：
+
+```bash
+# 1. 让系统的 python3 直接支持 .pyj（最接近“到处透明运行”）
+pip install --user --break-system-packages pybrace
+#    不想用这个参数的话：下载单个文件，装到用户目录（安装记录的是 pyj.py 当前的位置，之后别删除或移动它）
+curl -O https://raw.githubusercontent.com/yyszh01/pyj/main/pyj.py && python3 pyj.py install
+
+# 2. 用虚拟环境（项目开发推荐）：只有这个 venv 支持 .pyj
+python3 -m venv .venv && . .venv/bin/activate && pip install pybrace
+
+# 3. 只要 pyj 命令：`pyj app.pyj` 能用，但 `python3 app.pyj` 和 import 不支持 .pyj
+pipx install pybrace
+```
+
+加了 `--user` 时，包装在 `~/.local` 下，不会改动系统目录。pybrace 没有任何依赖，不会和 apt 管理的包冲突。
+
 ### 只下载单个文件
 
 把 `pyj.py` 放到任意位置即可：

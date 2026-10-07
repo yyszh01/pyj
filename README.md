@@ -44,6 +44,26 @@ pyj build app.pyj                  # convert to app.py
 - Compiled code is cached in `__pycache__/<module>.pyj.cpython-XY.pyc`. The cache is invalidated when the source file or pyj itself changes.
 - How `python app.pyj` works: at startup Python runs `pyj_autoload.pth` from site-packages. When it sees that the script is a `.pyj` file, it replaces the process with `python -m pyj app.pyj` (on Windows it starts a child process instead). Interpreter flags are preserved.
 
+#### `error: externally-managed-environment`
+
+Debian, Ubuntu and some other Linux distributions block `pip install` into the system Python ([PEP 668](https://peps.python.org/pep-0668/)). Pick one of these:
+
+```bash
+# 1. Make the system python3 support .pyj (closest to "works everywhere")
+pip install --user --break-system-packages pybrace
+#    or, without that flag: download the single file and install it into your user site-packages
+#    (the install refers to pyj.py where it is, so keep the file in place)
+curl -O https://raw.githubusercontent.com/yyszh01/pyj/main/pyj.py && python3 pyj.py install
+
+# 2. Use a virtual environment (recommended for projects): only that venv supports .pyj
+python3 -m venv .venv && . .venv/bin/activate && pip install pybrace
+
+# 3. Only the `pyj` command: `pyj app.pyj` works, but plain `python3 app.pyj` and imports do not
+pipx install pybrace
+```
+
+With `--user`, the package goes into `~/.local` and system directories are not touched. pybrace has no dependencies, so it cannot conflict with packages managed by apt.
+
 ### Single file, no pip
 
 Put `pyj.py` anywhere and run:
