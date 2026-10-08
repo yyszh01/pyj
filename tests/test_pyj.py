@@ -5,8 +5,17 @@ import tempfile
 import textwrap
 import unittest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+import importlib.util  # noqa: E402
 import traceback  # noqa: E402
+
+# 测试仓库里的 pyj.py，而不是可能已安装的版本（已安装时 .pth 会在启动时导入它）
+PYJ = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "pyj.py"))
+_spec = importlib.util.spec_from_file_location("pyj", PYJ)
+_pyj = importlib.util.module_from_spec(_spec)
+sys.path_hooks[:] = [h for h in sys.path_hooks if not getattr(h, "_pyj", False)]
+sys.path_importer_cache.clear()
+sys.modules["pyj"] = _pyj
+_spec.loader.exec_module(_pyj)
 
 from pyj import PyjSyntaxError, compile_pyj, transpile  # noqa: E402
 
@@ -129,14 +138,88 @@ class TestTranspile(unittest.TestCase):
                 f.write("def hi(n) { return f'hi {n}' }")
             with open(os.path.join(d, "main.pyj"), "w", encoding="utf-8") as f:
                 f.write("import sys, helper; print(helper.hi(sys.argv[1]))")
-            pyj = os.path.join(os.path.dirname(__file__), "..", "pyj.py")
-            out = subprocess.run([sys.executable, pyj, "run", os.path.join(d, "main.pyj"), "bob"],
+            out = subprocess.run([sys.executable, PYJ, "run", os.path.join(d, "main.pyj"), "bob"],
                                  capture_output=True, text=True)
             self.assertEqual(out.stdout, "hi bob\n", out.stderr)
             self.assertTrue(os.path.isdir(os.path.join(d, "__pycache__")))
 
 
 needs_cols = unittest.skipIf(sys.version_info < (3, 11), "traceback 列号需要 Python 3.11+")
+
+
+def pyj_cli(*args, input=None, env=None):
+    return subprocess.run([sys.executable, PYJ, *args], input=input, capture_output=True,
+                          text=True, encoding="utf-8", env=env)
+
+
+class TestCommandLine(unittest.TestCase):
+    def test_c(self):
+        out = pyj_cli("-c", "import sys; if 1 { print(sys.argv) }", "a", "b")
+        self.assertEqual(out.stdout, "['-c', 'a', 'b']\n", out.stderr)
+
+    def test_stdin(self):
+        code = "for i in range(3) { print(i) }"
+        self.assertEqual(pyj_cli(input=code).stdout, "0\n1\n2\n")
+        out = pyj_cli("-", "x", input="import sys; print(sys.argv)")
+        self.assertEqual(out.stdout, "['-', 'x']\n", out.stderr)
+
+    def test_c_traceback_shows_source(self):
+        out = pyj_cli("-c", "x = 1\nif x { y = x / 0 }")
+        self.assertEqual(out.returncode, 1)
+        self.assertIn('File "<string>", line 2', out.stderr)
+        self.assertIn("if x { y = x / 0 }", out.stderr)
+
+    def test_build_c_and_stdin(self):
+        self.assertEqual(pyj_cli("build", "-c", "if a { b() }").stdout, "if a:\n    b()\n")
+        self.assertEqual(pyj_cli("build", "-", input="while 0 {}").stdout, "while 0:\n    pass\n")
+        self.assertEqual(pyj_cli("build", "-c", "x", "f.pyj").returncode, 2)
+
+    def test_version(self):
+        self.assertEqual(pyj_cli("--version").stdout.strip(), f"pyj {_pyj.__version__}")
+
+
+@unittest.skipIf(sys.prefix != sys.base_prefix or not __import__("site").ENABLE_USER_SITE,
+                 "需要不在 venv 中、且启用了用户 site-packages 的 Python")
+class TestInstall(unittest.TestCase):
+    """在临时的 PYTHONUSERBASE 里安装，不影响真实的用户目录。"""
+
+    def test_install_run_uninstall(self):
+        import shutil
+        with tempfile.TemporaryDirectory() as d:
+            env = dict(os.environ, PYTHONUSERBASE=os.path.join(d, "userbase"), PYTHONUTF8="1")
+            dl, work = os.path.join(d, "download"), os.path.join(d, "work")
+            os.makedirs(dl)
+            os.makedirs(work)
+            shutil.copy(PYJ, dl)
+            out = subprocess.run([sys.executable, os.path.join(dl, "pyj.py"), "install"],
+                                 capture_output=True, text=True, env=env)
+            self.assertEqual(out.returncode, 0, out.stderr)
+            shutil.rmtree(dl)       # 安装后不再需要下载的文件
+
+            with open(os.path.join(work, "app.pyj"), "w", encoding="utf-8") as f:
+                f.write("import sys, m; if 1 { print(m.hi(), sys.argv[1]) }")
+            with open(os.path.join(work, "m.pyj"), "w", encoding="utf-8") as f:
+                f.write("def hi() { return 'ok' }")
+            run = subprocess.run([sys.executable, "app.pyj", "arg"], cwd=work,
+                                 capture_output=True, text=True, env=env)
+            self.assertEqual(run.stdout, "ok arg\n", run.stderr)
+
+            scripts = subprocess.run(
+                [sys.executable, "-c", "import sysconfig; print(sysconfig.get_path('scripts', "
+                 "sysconfig.get_preferred_scheme('user')))"],
+                capture_output=True, text=True, env=env).stdout.strip()
+            launcher = os.path.join(scripts, "pyj.cmd" if os.name == "nt" else "pyj")
+            cmd = ["cmd", "/c", launcher] if os.name == "nt" else [launcher]
+            out = subprocess.run(cmd + ["-c", "if 1 { print('launcher') }"],
+                                 capture_output=True, text=True, env=env)
+            self.assertEqual(out.stdout.strip(), "launcher", out.stderr)
+
+            out = subprocess.run(cmd + ["uninstall"], capture_output=True, text=True, env=env)
+            self.assertEqual(out.returncode, 0, out.stderr)
+            self.assertFalse(os.path.exists(launcher))
+            run = subprocess.run([sys.executable, "-c", "import pyj"], cwd=work,
+                                 capture_output=True, text=True, env=env)
+            self.assertNotEqual(run.returncode, 0)
 
 
 class TestSourceMap(unittest.TestCase):

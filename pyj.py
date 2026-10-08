@@ -18,7 +18,7 @@ import marshal
 import os
 import sys
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"
 
 __all__ = ["transpile", "compile_pyj", "run_file", "PyjSyntaxError", "install_import_hook"]
 
@@ -585,27 +585,26 @@ def _startup():
 
 # ---------------------------------------------------------------- 运行
 
-def run_file(path, args=()):
-    """Run a .pyj file as __main__, like `python path` does for .py files."""
+def run_source(src, filename, argv, path0="", file=None):
+    """Run pyj source as __main__. Returns the exit status (0, or 1 on an uncaught exception)."""
     import builtins
     import traceback
     import types
 
-    path = os.path.abspath(path) if not os.path.isabs(path) else path
-    with open(path, "rb") as f:
-        src = importlib.util.decode_source(f.read())
-    sys.argv = [path] + list(args)
-    sys.path[0] = os.path.dirname(path)
+    sys.argv = list(argv)
+    if sys.path:
+        sys.path[0] = path0
     install_import_hook()
 
     mod = types.ModuleType("__main__")
-    mod.__file__ = path
     mod.__builtins__ = builtins
-    mod.__loader__ = PyjLoader("__main__", path)
     mod.__spec__ = None
+    if file is not None:
+        mod.__file__ = file
+        mod.__loader__ = PyjLoader("__main__", file)
     sys.modules["__main__"] = mod
     try:
-        exec(compile_pyj(src, path), mod.__dict__)
+        exec(compile_pyj(src, filename), mod.__dict__)
     except SyntaxError as e:
         traceback.print_exception(type(e), e, None)
         return 1
@@ -620,40 +619,136 @@ def run_file(path, args=()):
     return 0
 
 
+def run_file(path, args=()):
+    """Run a .pyj file as __main__, like `python path` does for .py files."""
+    path = os.path.abspath(path)
+    with open(path, "rb") as f:
+        src = importlib.util.decode_source(f.read())
+    return run_source(src, path, [path, *args], os.path.dirname(path), file=path)
+
+
+def run_code(code, args=()):
+    """Run pyj code given as a string, like `python -c`."""
+    return run_source(code, "<string>", ["-c", *args])
+
+
+def _read_stdin():
+    data = sys.stdin.buffer.read() if hasattr(sys.stdin, "buffer") else sys.stdin.read().encode()
+    return importlib.util.decode_source(data)
+
+
 # ---------------------------------------------------------------- 安装
 
 PTH_NAME = "pyj_autoload.pth"
+_MARK = "pyj launcher (created by `pyj install`)"
+_SELF_DOC = '"""pyj: write Python with braces'
 
 
-def _site_dirs():
+def _install_dirs():
+    """(site-packages, scripts) to install into: the active venv, else the user's own directories."""
     import site
     import sysconfig
-    dirs = [sysconfig.get_paths()["purelib"]]
     if sys.prefix == sys.base_prefix and site.ENABLE_USER_SITE:
-        dirs.insert(0, site.getusersitepackages())
-    return dirs
+        scheme = sysconfig.get_preferred_scheme("user")
+        return site.getusersitepackages(), sysconfig.get_path("scripts", scheme)
+    return sysconfig.get_path("purelib"), sysconfig.get_path("scripts")
+
+
+def _installed_by_pip(site_dir):
+    import glob
+    return bool(glob.glob(os.path.join(site_dir, "pybrace-*.dist-info")))
+
+
+def _is_ours(path, marker):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return marker in f.read(4096)
+    except (OSError, UnicodeDecodeError):
+        return False
+
+
+def _launcher_path(scripts):
+    return os.path.join(scripts, "pyj.cmd" if os.name == "nt" else "pyj")
+
+
+def _write_launcher(scripts):
+    path = _launcher_path(scripts)
+    if os.path.exists(path) and not _is_ours(path, _MARK):
+        print(f"Skipped the `pyj` command: {path} already exists")
+        return None
+    os.makedirs(scripts, exist_ok=True)
+    if os.name == "nt":
+        text = f'@echo off\r\nrem {_MARK}\r\n"{sys.executable}" -m pyj %*\r\n'
+    else:
+        text = f"#!{sys.executable}\n# {_MARK}\nimport sys\nfrom pyj import main\nsys.exit(main())\n"
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        f.write(text)
+    if os.name != "nt":
+        os.chmod(path, 0o755)
+    return path
 
 
 def install():
-    target = _site_dirs()[0]
-    os.makedirs(target, exist_ok=True)
-    pth = os.path.join(target, PTH_NAME)
-    here = os.path.dirname(os.path.abspath(__file__))
-    with open(pth, "w", encoding="utf-8") as f:
-        f.write(f"{here}\nimport pyj; pyj._startup()\n")
-    print(f"Installed: {pth}")
+    """Copy pyj.py into site-packages, add the .pth autoloader and the `pyj` command.
+
+    Without a venv this goes to the user's own directories, so it needs neither
+    pip nor root and works on PEP 668 systems such as Debian and Ubuntu.
+    """
+    import shutil
+
+    site_dir, scripts = _install_dirs()
+    if _installed_by_pip(site_dir):
+        print(f"pyj is already installed by pip in {site_dir}; nothing to do.")
+        return 0
+    dst = os.path.join(site_dir, "pyj.py")
+    src = os.path.abspath(__file__)
+    if os.path.exists(dst) and not _is_ours(dst, _SELF_DOC):
+        print(f"Refusing to overwrite {dst}: it is not pyj", file=sys.stderr)
+        return 1
+    try:
+        os.makedirs(site_dir, exist_ok=True)
+        if os.path.normcase(dst) != os.path.normcase(src):
+            shutil.copyfile(src, dst)
+        with open(os.path.join(site_dir, PTH_NAME), "w", encoding="utf-8") as f:
+            f.write("import pyj; pyj._startup()\n")
+        launcher = _write_launcher(scripts)
+    except PermissionError as e:
+        print(f"Permission denied: {e.filename}", file=sys.stderr)
+        return 1
+    print(f"Installed pyj {__version__} into {site_dir}")
+    if launcher:
+        print(f"Installed the `pyj` command: {launcher}")
+        dirs = [os.path.normcase(os.path.abspath(d)) for d in os.environ.get("PATH", "").split(os.pathsep) if d]
+        if os.path.normcase(os.path.abspath(scripts)) not in dirs:
+            print(f"Note: {scripts} is not on PATH; add it to use the `pyj` command.")
     print("You can now run `python app.pyj` directly, and any Python program can import .pyj modules.")
+    print(f"The downloaded {os.path.basename(src)} is no longer needed.")
     return 0
 
 
 def uninstall():
-    removed = False
-    for d in _site_dirs():
-        pth = os.path.join(d, PTH_NAME)
-        if os.path.exists(pth):
-            os.remove(pth)
-            print(f"Removed: {pth}")
-            removed = True
+    site_dir, scripts = _install_dirs()
+    if _installed_by_pip(site_dir):
+        print("pyj was installed by pip; run `pip uninstall pybrace` instead.", file=sys.stderr)
+        return 1
+    removed = []
+    pth = os.path.join(site_dir, PTH_NAME)
+    if os.path.exists(pth):
+        os.remove(pth)
+        removed.append(pth)
+    mod = os.path.join(site_dir, "pyj.py")
+    if os.path.exists(mod) and _is_ours(mod, _SELF_DOC):
+        os.remove(mod)
+        removed.append(mod)
+        import glob
+        for pyc in glob.glob(os.path.join(site_dir, "__pycache__", "pyj.*.pyc")):
+            os.remove(pyc)
+    launcher = _launcher_path(scripts)
+    if os.path.exists(launcher) and _is_ours(launcher, _MARK):
+        os.remove(launcher)
+        removed.append(launcher)
+    for path in removed:
+        print(f"Removed: {path}")
     if not removed:
         print("pyj is not installed")
     return 0
@@ -668,23 +763,55 @@ def _print_syntax_error(e):
         print("    " + " " * (e.offset - 1) + "^", file=sys.stderr)
 
 
+USAGE = """\
+usage: pyj FILE.pyj [args...]       run a file
+       pyj -c CODE [args...]        run code given on the command line
+       pyj - [args...]              run code read from stdin (also: `... | pyj`)
+       pyj run FILE [args...]       run a file of any name
+       pyj build FILE [-o OUT]      convert to Python (OUT '-' means stdout)
+       pyj build -c CODE | -        print the Python for code or stdin
+       pyj install | uninstall      enable / disable .pyj support for this Python
+       pyj -h | --version
+"""
+
+
 def main(argv=None):
     import argparse
 
     argv = list(sys.argv[1:] if argv is None else argv)
-    if argv and argv[0].endswith(".pyj"):
-        return run_file(argv[0], argv[1:])     # pyj app.pyj ... 等同 pyj run app.pyj ...
+    if not argv:
+        if sys.stdin is not None and not sys.stdin.isatty():
+            return run_source(_read_stdin(), "<stdin>", ["-"])
+        sys.stdout.write(USAGE)
+        return 2
+    first = argv[0]
+    if first == "-c":
+        if len(argv) < 2:
+            print("pyj: -c requires an argument", file=sys.stderr)
+            return 2
+        return run_code(argv[1], argv[2:])
+    if first == "-":
+        return run_source(_read_stdin(), "<stdin>", ["-", *argv[1:]])
+    if first in ("-h", "--help"):
+        sys.stdout.write(USAGE)
+        return 0
+    if first in ("-V", "--version"):
+        print(f"pyj {__version__}")
+        return 0
+    if first.endswith(".pyj"):
+        return run_file(first, argv[1:])     # pyj app.pyj ... 等同 pyj run app.pyj ...
 
-    parser = argparse.ArgumentParser(prog="pyj", description="Write Python with braces")
+    parser = argparse.ArgumentParser(prog="pyj", usage="pyj {run,build,install,uninstall} ... (see `pyj -h`)", description="Write Python with braces")
     sub = parser.add_subparsers(dest="cmd", required=True)
-    p_run = sub.add_parser("run", help="transpile and run a .pyj file")
+    p_run = sub.add_parser("run", help="run a pyj file")
     p_run.add_argument("file")
     p_run.add_argument("args", nargs=argparse.REMAINDER)
-    p_build = sub.add_parser("build", help="transpile a .pyj file to .py")
-    p_build.add_argument("file")
-    p_build.add_argument("-o", "--output", help="output file (default: same name with .py; '-' for stdout)")
-    sub.add_parser("install", help="install into site-packages so every Python process supports .pyj")
-    sub.add_parser("uninstall", help="remove the automatic .pyj support")
+    p_build = sub.add_parser("build", help="convert pyj to Python")
+    p_build.add_argument("file", nargs="?", help="input file, or '-' for stdin")
+    p_build.add_argument("-c", dest="code", help="convert this code instead of a file")
+    p_build.add_argument("-o", "--output", help="output file (default: FILE with .py, or stdout for -c / -)")
+    sub.add_parser("install", help="enable .pyj support (user directory, or the active venv)")
+    sub.add_parser("uninstall", help="disable .pyj support")
     args = parser.parse_args(argv)
 
     if args.cmd == "install":
@@ -694,14 +821,22 @@ def main(argv=None):
     if args.cmd == "run":
         return run_file(args.file, args.args)
 
-    with open(args.file, encoding="utf-8") as f:
-        src = f.read()
+    if (args.code is None) == (args.file is None):
+        parser.error("build needs exactly one of FILE, '-' or -c CODE")
+    if args.code is not None:
+        src, name, default_out = args.code, "<string>", "-"
+    elif args.file == "-":
+        src, name, default_out = _read_stdin(), "<stdin>", "-"
+    else:
+        with open(args.file, "rb") as f:
+            src = importlib.util.decode_source(f.read())
+        name, default_out = args.file, os.path.splitext(args.file)[0] + ".py"
     try:
-        py = transpile(src, args.file)
+        py = transpile(src, name)
     except PyjSyntaxError as e:
         _print_syntax_error(e)
         return 1
-    out = args.output or os.path.splitext(args.file)[0] + ".py"
+    out = args.output or default_out
     if out == "-":
         sys.stdout.write(py)
     else:
@@ -711,12 +846,16 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
-    # 统一使用名为 pyj 的模块，避免 __main__ 和 pyj 两份副本各装一个钩子
-    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    try:
-        import pyj as _pyj
-    except ImportError:
-        _pyj = None
-    finally:
-        del sys.path[0]
-    sys.exit((_pyj.main if _pyj else main)())
+    # `python pyj.py ...` 必须运行这个文件本身：
+    # 已安装的 pyj（可能是旧版本）会在启动时被 .pth 导入，这里用本文件替换它，
+    # 并去掉它装的 import 钩子；同时保证整个进程只有一个名为 pyj 的模块。
+    _here = os.path.normcase(os.path.abspath(__file__))
+    _mod = sys.modules.get("pyj")
+    if _mod is None or os.path.normcase(os.path.abspath(getattr(_mod, "__file__", "") or "")) != _here:
+        sys.path_hooks[:] = [h for h in sys.path_hooks if not getattr(h, "_pyj", False)]
+        sys.path_importer_cache.clear()
+        _spec = importlib.util.spec_from_file_location("pyj", __file__)
+        _mod = importlib.util.module_from_spec(_spec)
+        sys.modules["pyj"] = _mod
+        _spec.loader.exec_module(_mod)
+    sys.exit(_mod.main())

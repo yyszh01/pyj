@@ -17,15 +17,30 @@ if n < 0 { print("负数") } else if n == 0 { print("零") }
 
 ## 特点
 
-- **单文件、零依赖**：整个工具就是一个 `pyj.py`，只用标准库。
+- **单文件、零依赖**：整个工具就是一个 `pyj.py`，只用标准库，不需要 pip 或 root 就能自行安装。
 - **透明运行**：安装后 `python app.pyj` 直接跑，任何程序都能 `import` `.pyj` 模块，`.py` 和 `.pyj` 可以混用。
+- **也能在命令行直接写**：`pyj -c 'for i in range(3) { print(i) }'`，或者用管道把代码传给 `pyj`。
 - **报错指回源码**：traceback、语法错误、`inspect.getsource` 都显示 `.pyj` 源码的行和列。
 - **字典、集合照常写**：能自动区分代码块的 `{` 和字面量的 `{`。
 - **跨平台**：Python 3.10+，在 Linux / macOS / Windows 上由 CI 测试。
 
 ## 安装
 
-### 用 pip 安装（推荐）
+### Debian、Ubuntu 等限制 pip 的系统
+
+不需要 pip、不需要 `sudo`，也不用加任何特殊参数，三条命令：
+
+```bash
+curl -O https://raw.githubusercontent.com/yyszh01/pyj/main/pyj.py
+python3 pyj.py install
+rm pyj.py
+```
+
+`install` 会把 pyj 复制到你个人的 site-packages，让你运行的每个 `python3` 都支持 `.pyj`，并在 `~/.local/bin` 生成 `pyj` 命令。下载的文件之后就不需要了。如果终端提示找不到 `pyj`，把 `~/.local/bin` 加进 `PATH`（例如在 `~/.bashrc` 里加一行 `export PATH="$HOME/.local/bin:$PATH"`）；`python3 app.pyj` 不受影响，不加也能用。
+
+升级：重新执行这三条命令。卸载：`pyj uninstall`。如果在已激活的虚拟环境里运行，`install` 会装进这个虚拟环境。
+
+### 用 pip 安装
 
 ```bash
 pip install pybrace
@@ -33,76 +48,45 @@ pip install pybrace
 
 装好后当前 Python 环境里的所有进程都自动支持 `.pyj`，`pip uninstall pybrace` 即可完全移除。PyPI 上的包名是 `pybrace`，模块名和命令仍然是 `pyj`。本项目与名字相近的 [mayank-verma048/PyBrace](https://github.com/mayank-verma048/PyBrace) 无关。
 
+在把系统 Python 标记为“外部管理”的系统上（[PEP 668](https://peps.python.org/pep-0668/)），`pip install` 会报 `error: externally-managed-environment`。可以用上面的安装方法，或者：
+
 ```bash
-python app.pyj arg1 arg2           # 直接运行
-python -c "import mymod"           # import 任意 .pyj 模块，包可以用 __init__.pyj
-pyj build app.pyj                  # 转成 app.py
+# 装到个人目录：和 --user 一起用时，这个参数仍然只写入 ~/.local；
+# pybrace 没有任何依赖，不会和 apt 的包冲突
+pip install --user --break-system-packages pybrace
+
+# 虚拟环境（项目开发推荐）：只有这个 venv 支持 .pyj
+python3 -m venv .venv && . .venv/bin/activate && pip install pybrace
 ```
+
+`pipx install pybrace` 也可以，但只提供 `pyj` 命令：这种方式下 `python3 app.pyj` 和 import 不支持 `.pyj`。
+
+## 用法
+
+```bash
+python app.pyj arg1 arg2                   # 直接运行文件
+python -c "import mymod"                   # import 任意 .pyj 模块，包可以用 __init__.pyj
+
+pyj app.pyj arg1 arg2                      # 等同 python app.pyj
+pyj -c 'for i in range(3) { print(i) }'    # 直接执行命令行里的代码，类似 python -c
+echo 'if 1 { print("hi") }' | pyj           # 从标准输入读代码执行（也可以 pyj - 参数...）
+
+pyj build app.pyj                          # 生成 app.py
+pyj build -c 'def f(x) { return x * 2 }'   # 打印一段代码转换后的 Python（pyj build - 读标准输入）
+```
+
+`python -m pyj ...` 等同 `pyj ...`。不安装时，用下载的文件同样可以：`python pyj.py -c '...'`、`python pyj.py build app.pyj`。
 
 - `.pyj` 和 `.py` 可以互相 import；同名时 `.pyj` 优先。
 - 编译结果缓存在 `__pycache__/<模块名>.pyj.cpython-XY.pyc`；源文件或 pyj 本身改动后会自动失效。
+- 用 `-c` 或标准输入执行的代码，报错定位和文件一样：traceback 会显示你的代码中出错的那一行。
 - `python app.pyj` 的原理：Python 启动时会执行 site-packages 中的 `pyj_autoload.pth`，它发现启动的是 `.pyj` 文件，就把进程替换成 `python -m pyj app.pyj`（Windows 上是启动子进程），解释器参数原样保留。
-
-### 安装到个人目录（不需要管理员权限）
-
-```bash
-pip install --user pybrace
-```
-
-包会装进你个人的 site-packages（运行 `python3 -m site --user-site` 可以看到具体位置），不改动系统目录，也不需要 `sudo`。装好后，你这个账号下系统自带的 `python3` 就支持 `.pyj`，`python3 app.pyj` 和 `import` 都能直接用。
-
-**Debian、Ubuntu 等把系统 Python 标记为“外部管理”的发行版**（[PEP 668](https://peps.python.org/pep-0668/)）会报 `error: externally-managed-environment`，加上 `--break-system-packages` 即可：
-
-```bash
-pip install --user --break-system-packages pybrace
-pip uninstall --break-system-packages pybrace      # 卸载
-```
-
-这个参数名字听着吓人，但和 `--user` 一起用时仍然只写入你的个人目录。pybrace 没有任何依赖，不会和 apt 管理的包冲突。
-
-在 Linux 上，`pyj` 命令会装到 `~/.local/bin`（任何系统上都可以用 `python3 -m site --user-base` 查看基础目录）。如果终端提示找不到 `pyj`，把这个目录加进 `PATH`，例如在 `~/.bashrc` 里加一行 `export PATH="$HOME/.local/bin:$PATH"`。`python3 app.pyj` 不受影响，不加也能用。
-
-**不用 pip：** 下载单个文件，装到个人目录。安装记录的是 `pyj.py` 当前的位置，之后别删除或移动它：
-
-```bash
-curl -O https://raw.githubusercontent.com/yyszh01/pyj/main/pyj.py
-python3 pyj.py install       # 在个人 site-packages 写入 pyj_autoload.pth
-python3 pyj.py uninstall     # 卸载
-```
-
-### “外部管理”系统上的其他办法
-
-```bash
-# 虚拟环境（项目开发推荐）：只有这个 venv 支持 .pyj
-python3 -m venv .venv && . .venv/bin/activate && pip install pybrace
-
-# pipx 只提供 pyj 命令：`pyj app.pyj` 能用，
-# 但 `python3 app.pyj` 和 import 不支持 .pyj
-pipx install pybrace
-```
-
-### 只下载单个文件
-
-把 `pyj.py` 放到任意位置即可：
-
-```bash
-python pyj.py install     # 写入 pyj_autoload.pth，效果同 pip 安装（在 venv 中运行则只装进该 venv）
-python pyj.py uninstall   # 卸载
-```
-
-### 不安装也能用
-
-```bash
-python3 pyj.py run  app.pyj [参数...]   # 或 python3 pyj.py app.pyj
-python3 pyj.py build app.pyj            # 生成 app.py
-python3 pyj.py build app.pyj -o -       # 输出到终端
-```
 
 在 Python 代码里使用：
 
 ```python
 import pyj
-pyj.install_import_hook()          # 之后可以 import .pyj 模块
+pyj.install_import_hook()                 # 之后可以 import .pyj 模块
 print(pyj.transpile("if x { y() }"))
 code = pyj.compile_pyj(src, "file.pyj")   # 位置已映射回源码的 code 对象
 ```
@@ -146,20 +130,42 @@ ZeroDivisionError: division by zero
 
 ## 与同类项目的对比
 
-还有其他项目也想让 Python 用上花括号，pyj 与它们都没有关系。下面的对比基于 python-with-braces 0.1.2（截至 2026 年 10 月 PyPI 上的最新版本）：用它自己的 `PythonWithBraces().process_code()` 转换每段输入，再运行转换结果。每一行都可以用表中的输入自己复现。
+还有其他项目也想让 Python 用上花括号，pyj 与它们都没有关系。下面每个项目都用它自己的转换函数处理表中的输入，再运行转换结果；每一行都可以自己复现。
 
-| 输入 | [python-with-braces](https://pypi.org/project/python-with-braces/) 0.1.2 | pyj |
+### python-with-braces
+
+测试版本：[python-with-braces](https://pypi.org/project/python-with-braces/) 0.1.2（截至 2026 年 10 月 PyPI 上的最新版本），使用 `PythonWithBraces().process_code()`。
+
+| 输入 | python-with-braces 0.1.2 | pyj |
 |---|---|---|
 | `d = {"a": 1}` | 转换成 `d = :"a": 1`，语法错误 | ✅ |
 | 代码块里有嵌套字典 | 语法错误 | ✅ |
 | `def f(x) { if x { return 1 } else { return 2 } }` | 语法错误 | ✅ |
-| `class Myself { x = 1 }` | 类名变成 `My`（类定义行里的 `self` 全被删掉） | ✅ |
+| `class Myself {`⏎`x = 1`⏎`}` | 类名变成 `My`（类定义行里的 `self` 全被删掉） | ✅ |
 | 类里的 `@staticmethod` | 被加上 `self` 参数，缩进也乱了 | ✅ |
 | `print("a => b")` | 能运行，但输出 `a >= b`（所有 `=>`、`=<` 都会被替换，字符串里的也是） | ✅ |
 | 运行时出现未捕获的异常 | traceback 显示 `<string>`；退出码 0 | traceback 指向 `.pyj` 文件的行和列；退出码 1 |
 | `python app.pyj` / `import` 模块 | 不支持，要通过它的 `pwb` 命令运行 | ✅ |
 
-[mayank-verma048/PyBrace](https://github.com/mayank-verma048/PyBrace)（2018）是一个基于 Python 2 的按行转换器：`{` 必须在行尾、`}` 必须单独一行，而且要先转成 `.py` 才能运行。
+### pybraces
+
+测试版本：[pybraces](https://pypi.org/project/pybraces/) 0.2.0（截至 2026 年 10 月 PyPI 上的最新版本），使用 `braces2py()`。
+
+pybraces 的定位是在 shell 里写单行脚本，有意采用了更严格的写法：代码块写成 `: {`，换行一律当作空格，语句之间必须用 `;` 分隔。按它的写法，字典、嵌套字典、类、装饰器、f-string 都处理正确，而且同样的代码 pyj 也能原样运行。区别在于：
+
+| | pybraces 0.2.0 | pyj |
+|---|---|---|
+| 不写冒号的 `if x { ... }` | 不支持（按设计） | ✅ |
+| 每行一条语句、不写 `;` | 不支持（按设计：换行当作空格） | ✅ |
+| `f = lambda: {"a": 1}; print(f())` | 语法错误：`lambda` 后面的 `: {` 被当成代码块 | ✅ |
+| 在 shell 里执行代码 | `pyb -c CODE`、标准输入，还有 `-M` 自动 import 标准库模块 | `pyj -c CODE`、标准输入 |
+| 文件和模块 | 用 `pyb FILE` 运行文件；不支持 import 这种文件 | `python app.pyj`、`import` |
+| 报错定位 | 通过 `python -c` 运行转换后的代码，traceback 指向转换后的代码 | traceback 指向原始代码 |
+| 依赖 | `regex==2024.7.24`；这个版本在 Python 3.14 上没有现成的安装包，需要 C 编译器 | 无 |
+
+### 其他
+
+[mayank-verma048/PyBrace](https://github.com/mayank-verma048/PyBrace)（2018）是一个基于 Python 2 的按行转换器：`{` 必须在行尾、`}` 必须单独一行，而且要先转成 `.py` 才能运行。[Bython](https://github.com/mathialo/bython) 是更早的同类项目，这里没有做对比。
 
 ## 开发
 
