@@ -44,25 +44,43 @@ pyj build app.pyj                  # convert to app.py
 - Compiled code is cached in `__pycache__/<module>.pyj.cpython-XY.pyc`. The cache is invalidated when the source file or pyj itself changes.
 - How `python app.pyj` works: at startup Python runs `pyj_autoload.pth` from site-packages. When it sees that the script is a `.pyj` file, it replaces the process with `python -m pyj app.pyj` (on Windows it starts a child process instead). Interpreter flags are preserved.
 
-#### `error: externally-managed-environment`
-
-Debian, Ubuntu and some other Linux distributions block `pip install` into the system Python ([PEP 668](https://peps.python.org/pep-0668/)). Pick one of these:
+### Install into your user directory (no admin rights)
 
 ```bash
-# 1. Make the system python3 support .pyj (closest to "works everywhere")
-pip install --user --break-system-packages pybrace
-#    or, without that flag: download the single file and install it into your user site-packages
-#    (the install refers to pyj.py where it is, so keep the file in place)
-curl -O https://raw.githubusercontent.com/yyszh01/pyj/main/pyj.py && python3 pyj.py install
-
-# 2. Use a virtual environment (recommended for projects): only that venv supports .pyj
-python3 -m venv .venv && . .venv/bin/activate && pip install pybrace
-
-# 3. Only the `pyj` command: `pyj app.pyj` works, but plain `python3 app.pyj` and imports do not
-pipx install pybrace
+pip install --user pybrace
 ```
 
-With `--user`, the package goes into `~/.local` and system directories are not touched. pybrace has no dependencies, so it cannot conflict with packages managed by apt.
+This installs into your personal site-packages (`python3 -m site --user-site` prints where) and does not touch system directories or need `sudo`. The system `python3` then supports `.pyj` for your user account: `python3 app.pyj` and imports work directly.
+
+**Debian, Ubuntu and other distributions that mark the system Python as externally managed** ([PEP 668](https://peps.python.org/pep-0668/)) reject this with `error: externally-managed-environment`. Add `--break-system-packages`:
+
+```bash
+pip install --user --break-system-packages pybrace
+pip uninstall --break-system-packages pybrace      # to remove it
+```
+
+Despite its name, together with `--user` this flag still only writes to your user directory. pybrace has no dependencies, so it cannot conflict with packages managed by apt.
+
+The `pyj` command is installed into `~/.local/bin` on Linux (`python3 -m site --user-base` shows the base directory on every OS). If your shell cannot find `pyj`, add that directory to `PATH`, e.g. `export PATH="$HOME/.local/bin:$PATH"` in `~/.bashrc`. `python3 app.pyj` works without it.
+
+**Without pip:** download the single file and install it into your user site-packages. The install refers to `pyj.py` where it is, so keep the file in place:
+
+```bash
+curl -O https://raw.githubusercontent.com/yyszh01/pyj/main/pyj.py
+python3 pyj.py install       # writes pyj_autoload.pth to your user site-packages
+python3 pyj.py uninstall     # to remove it
+```
+
+### Other options on externally managed systems
+
+```bash
+# A virtual environment (recommended for projects): only that venv supports .pyj
+python3 -m venv .venv && . .venv/bin/activate && pip install pybrace
+
+# pipx gives you only the `pyj` command: `pyj app.pyj` works,
+# but plain `python3 app.pyj` and imports do not
+pipx install pybrace
+```
 
 ### Single file, no pip
 
@@ -126,6 +144,23 @@ How it works: while converting, pyj records where each token came from in the so
 - A line starting with `(`, `[`, `-` or `*` does **not** continue the previous line. This avoids the JavaScript pitfall where `a`⏎`(b)` becomes a function call. To continue a line, put the operator at the end of the line or wrap the expression in parentheses.
 - In a compound statement header written as `if x: {...}`, the `{` always opens a block. To put a dict expression after a one-line `if`, wrap it in a normal `{ }` block.
 - Comments are preserved. A comment in the middle of an expression is moved to the end of that statement's line.
+
+## Comparison with similar projects
+
+Other projects share the idea of Python with braces. pyj is not affiliated with any of them. The comparison below was made with python-with-braces 0.1.2 (the latest release on PyPI as of October 2026), using its own `PythonWithBraces().process_code()` to convert each input and then running the result. Every row can be reproduced with the input shown.
+
+| Input | [python-with-braces](https://pypi.org/project/python-with-braces/) 0.1.2 | pyj |
+|---|---|---|
+| `d = {"a": 1}` | Converted to `d = :"a": 1`, a SyntaxError | ✅ |
+| A nested dict inside a block | SyntaxError | ✅ |
+| `def f(x) { if x { return 1 } else { return 2 } }` | SyntaxError | ✅ |
+| `class Myself { x = 1 }` | Class renamed to `My` (every `self` on a class line is removed) | ✅ |
+| `@staticmethod` inside a class | A `self` parameter is added and the indentation breaks | ✅ |
+| `print("a => b")` | Runs, but prints `a >= b` (`=>` and `=<` are rewritten everywhere, including inside strings) | ✅ |
+| Uncaught exception at run time | Traceback shows `<string>`; exit status 0 | Traceback shows the `.pyj` file, line and column; exit status 1 |
+| `python app.pyj` / `import` a module | Not supported; run through its `pwb` command | ✅ |
+
+[mayank-verma048/PyBrace](https://github.com/mayank-verma048/PyBrace) (2018) is a Python 2 line-based converter: `{` must end a line and `}` must stand on its own line, and files must be converted to `.py` before running.
 
 ## Development
 
