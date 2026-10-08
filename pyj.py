@@ -683,8 +683,9 @@ def _write_launcher(scripts):
         return None
     os.makedirs(scripts, exist_ok=True)
     if os.name == "nt":
-        # 整段放在括号里：cmd 会先读完整个块再执行，`pyj uninstall` 删掉本文件后不会再去读它
-        text = f'@echo off\r\nrem {_MARK}\r\n(\r\n"{sys.executable}" -m pyj %*\r\nexit /b\r\n)\r\n'
+        # `(goto) 2>nul` 先结束批处理上下文，同一行剩下的命令仍会执行，cmd 之后不再读本文件，
+        # 所以 `pyj uninstall` 删掉它也不会报 "The batch file cannot be found"；退出码来自 python
+        text = f'@echo off\r\nrem {_MARK}\r\n(goto) 2>nul & "{sys.executable}" -m pyj %*\r\n'
     else:
         text = f"#!{sys.executable}\n# {_MARK}\nimport sys\nfrom pyj import main\nsys.exit(main())\n"
     with open(path, "w", encoding="utf-8", newline="") as f:
