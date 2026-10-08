@@ -31,7 +31,7 @@ if n < 0 { print("负数") } else if n == 0 { print("零") }
 pip install pybrace
 ```
 
-装好后当前 Python 环境里的所有进程都自动支持 `.pyj`，`pip uninstall pybrace` 即可完全移除。PyPI 上的包名是 `pybrace`，模块名和命令仍然是 `pyj`。
+装好后当前 Python 环境里的所有进程都自动支持 `.pyj`，`pip uninstall pybrace` 即可完全移除。PyPI 上的包名是 `pybrace`，模块名和命令仍然是 `pyj`。本项目与名字相近的 [mayank-verma048/PyBrace](https://github.com/mayank-verma048/PyBrace) 无关。
 
 ```bash
 python app.pyj arg1 arg2           # 直接运行

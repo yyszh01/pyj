@@ -32,7 +32,7 @@ if n < 0 { print("negative") } else if n == 0 { print("zero") }
 pip install pybrace
 ```
 
-After installing, every Python process in that environment understands `.pyj` files. `pip uninstall pybrace` removes it completely. The package is named `pybrace` on PyPI, but the module and the command are both `pyj`.
+After installing, every Python process in that environment understands `.pyj` files. `pip uninstall pybrace` removes it completely. The package is named `pybrace` on PyPI, but the module and the command are both `pyj`. It is not affiliated with [mayank-verma048/PyBrace](https://github.com/mayank-verma048/PyBrace), an unrelated project with a similar name.
 
 ```bash
 python app.pyj arg1 arg2           # run directly
