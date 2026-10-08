@@ -5,7 +5,7 @@
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-[English](https://github.com/yyszh01/pyj/blob/main/README.md) | 简体中文
+[English](https://github.com/yyszh01/pyj/blob/main/README.md) | 简体中文 | [日本語](https://github.com/yyszh01/pyj/blob/main/README.ja.md)
 
 不用管换行和缩进，像 JS 一样写 Python。`.pyj` 文件在运行时透明地转换成标准 Python，报错直接指回 `.pyj` 源码的行号和列号。
 ```python

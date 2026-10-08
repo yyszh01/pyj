@@ -5,7 +5,7 @@
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-English | [简体中文](https://github.com/yyszh01/pyj/blob/main/README.zh-CN.md)
+English | [简体中文](https://github.com/yyszh01/pyj/blob/main/README.zh-CN.md) | [日本語](https://github.com/yyszh01/pyj/blob/main/README.ja.md)
 
 Write Python like JavaScript: blocks in `{ }`, statements separated by `;` or newlines, and no significant whitespace. `.pyj` files are converted to standard Python transparently at import and run time, and errors point back to the original `.pyj` lines and columns.
 
