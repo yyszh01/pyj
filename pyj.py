@@ -18,7 +18,7 @@ import marshal
 import os
 import sys
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 __all__ = ["transpile", "compile_pyj", "run_file", "PyjSyntaxError", "install_import_hook"]
 
