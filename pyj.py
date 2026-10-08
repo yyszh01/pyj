@@ -614,7 +614,12 @@ def run_source(src, filename, argv, path0="", file=None):
         here = os.path.normcase(os.path.abspath(__file__))
         while tb is not None and os.path.normcase(os.path.abspath(tb.tb_frame.f_code.co_filename)) == here:
             tb = tb.tb_next
-        sys.excepthook(type(e), e.with_traceback(tb), tb)
+        if sys.excepthook is sys.__excepthook__:
+            # 默认 excepthook 在 3.13 之前是 C 实现，只从磁盘读源码行，看不到 -c / stdin
+            # 代码在 linecache 里登记的源码；traceback 模块会用 linecache
+            traceback.print_exception(type(e), e.with_traceback(tb), tb)
+        else:
+            sys.excepthook(type(e), e.with_traceback(tb), tb)
         return 1
     return 0
 
@@ -678,7 +683,8 @@ def _write_launcher(scripts):
         return None
     os.makedirs(scripts, exist_ok=True)
     if os.name == "nt":
-        text = f'@echo off\r\nrem {_MARK}\r\n"{sys.executable}" -m pyj %*\r\n'
+        # 整段放在括号里：cmd 会先读完整个块再执行，`pyj uninstall` 删掉本文件后不会再去读它
+        text = f'@echo off\r\nrem {_MARK}\r\n(\r\n"{sys.executable}" -m pyj %*\r\nexit /b\r\n)\r\n'
     else:
         text = f"#!{sys.executable}\n# {_MARK}\nimport sys\nfrom pyj import main\nsys.exit(main())\n"
     with open(path, "w", encoding="utf-8", newline="") as f:

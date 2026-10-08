@@ -7,3 +7,4 @@ dist/
 venv/
 # output of `pyj build`
 examples/*.py
+test-output.txt

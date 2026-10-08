@@ -22,7 +22,13 @@ jobs:
           python-version: ${{ matrix.python }}
 
       - name: Unit tests
-        run: python -m unittest discover -s tests -v
+        shell: bash
+        run: |
+          set +e
+          python -m unittest discover -s tests -v 2>&1 | tee test-output.txt
+          status=${PIPESTATUS[0]}
+          [ "$status" -ne 0 ] && python .github/scripts/annotate_unittest.py test-output.txt
+          exit "$status"
 
       - name: Run the single file without installing
         run: python pyj.py run examples/demo.pyj
