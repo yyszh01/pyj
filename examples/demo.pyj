@@ -1,4 +1,4 @@
-# pyj 示例：随便换行、随便缩进
+# pyj demo: break lines and indent however you like
 import math; from dataclasses import dataclass
 
 @dataclass
@@ -9,11 +9,11 @@ class Point { x: float; y: float
 def fib(n) { a, b = 0, 1; for _ in range(n) { a, b = b, a + b }; return a }
 
 def classify(n) {
-if n < 0 { return "负数" } else if n == 0 { return "零" }
-    else { return "正数" }
+if n < 0 { return "negative" } else if n == 0 { return "zero" }
+    else { return "positive" }
 }
 
-config = {"name": "pyj", "tags": {"a", "b"}}   # 字典和集合照常用
+config = {"name": "pyj", "tags": {"a", "b"}}   # dicts and sets work as usual
 if "pyj" in {config["name"]} { print(f"hello {config['name']}! {{literal}} {len({1, 2})}") }
 
 total = 1 +
@@ -24,7 +24,7 @@ print(total)
 p = Point(0, 0); q = Point(3, 4)
 print(p.dist(q), [fib(i) for i in range(10)], classify(-5), classify(0), classify(7))
 
-try { 1 / 0 } except ZeroDivisionError as e { print("捕获:", e) } finally { print("finally") }
+try { 1 / 0 } except ZeroDivisionError as e { print("caught:", e) } finally { print("finally") }
 
 def http(code) { match code { case 200 | 201 { return "ok" } case _ { return "err" } } }
 print(http(200), http(500))

@@ -8,7 +8,7 @@ import unittest
 import importlib.util  # noqa: E402
 import traceback  # noqa: E402
 
-# 测试仓库里的 pyj.py，而不是可能已安装的版本（已安装时 .pth 会在启动时导入它）
+# Test the repository's pyj.py, not an installed copy (an installed pyj is imported at startup by its .pth)
 PYJ = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "pyj.py"))
 _spec = importlib.util.spec_from_file_location("pyj", PYJ)
 _pyj = importlib.util.module_from_spec(_spec)
@@ -78,7 +78,7 @@ class TestTranspile(unittest.TestCase):
         self.assertEqual(ns["s"], "a\n  b")
         self.assertEqual(ns["t"], "1\n")
 
-    @unittest.skipIf(sys.version_info < (3, 12), "f-string 内嵌同种引号需要 Python 3.12+")
+    @unittest.skipIf(sys.version_info < (3, 12), "reusing quotes inside f-strings needs Python 3.12+")
     def test_nested_fstring(self):
         ns = run('x = 3; s = f"{x:{x}d}|{f"{x}"}|{"}"}"')
         self.assertEqual(ns["s"], "  3|3|}")
@@ -144,7 +144,7 @@ class TestTranspile(unittest.TestCase):
             self.assertTrue(os.path.isdir(os.path.join(d, "__pycache__")))
 
 
-needs_cols = unittest.skipIf(sys.version_info < (3, 11), "traceback 列号需要 Python 3.11+")
+needs_cols = unittest.skipIf(sys.version_info < (3, 11), "traceback columns need Python 3.11+")
 
 
 def pyj_cli(*args, input=None, env=None):
@@ -179,9 +179,9 @@ class TestCommandLine(unittest.TestCase):
 
 
 @unittest.skipIf(sys.prefix != sys.base_prefix or not __import__("site").ENABLE_USER_SITE,
-                 "需要不在 venv 中、且启用了用户 site-packages 的 Python")
+                 "needs a Python outside a venv with the user site-packages enabled")
 class TestInstall(unittest.TestCase):
-    """在临时的 PYTHONUSERBASE 里安装，不影响真实的用户目录。"""
+    """Installs into a temporary PYTHONUSERBASE, leaving the real user directory alone."""
 
     def test_install_run_uninstall(self):
         import shutil
@@ -194,7 +194,7 @@ class TestInstall(unittest.TestCase):
             out = subprocess.run([sys.executable, os.path.join(dl, "pyj.py"), "install"],
                                  capture_output=True, text=True, env=env)
             self.assertEqual(out.returncode, 0, out.stderr)
-            shutil.rmtree(dl)       # 安装后不再需要下载的文件
+            shutil.rmtree(dl)       # the downloaded file is not needed after installing
 
             with open(os.path.join(work, "app.pyj"), "w", encoding="utf-8") as f:
                 f.write("import sys, m; if 1 { print(m.hi(), sys.argv[1]) }")
@@ -228,7 +228,7 @@ class TestSourceMap(unittest.TestCase):
             exec(compile_pyj(src, "<map-test>"), {})
         except Exception as e:
             return traceback.extract_tb(e.__traceback__)[-1]
-        self.fail("没有抛出异常")
+        self.fail("no exception was raised")
 
     @needs_cols
     def test_runtime_line_and_col(self):
@@ -247,7 +247,7 @@ class TestSourceMap(unittest.TestCase):
     def test_unicode_columns(self):
         fr = self.frame_of("名字 = '中文'; if 名字 { 名字.不存在() }")
         self.assertEqual(fr.lineno, 1)
-        # colno 和原生 Python 一样是 UTF-8 字节偏移
+        # like CPython, colno is a UTF-8 byte offset
         self.assertEqual(fr.line.encode()[fr.colno:fr.end_colno].decode(), "名字.不存在")
 
     @needs_cols

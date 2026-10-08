@@ -24,17 +24,17 @@ __all__ = ["transpile", "compile_pyj", "run_file", "PyjSyntaxError", "install_im
 
 INDENT = "    "
 
-# 以这些关键字开头的语句可以带代码块
+# Statements starting with these keywords can have a block
 COMPOUND = {"if", "elif", "else", "for", "while", "def", "class", "try",
             "except", "finally", "with", "async", "match", "case"}
-# 这些关键字后面可以直接跟代码块的 {
+# A block's { may directly follow these keywords
 BLOCK_KW = {"else", "try", "finally", "except"}
-# 以这些关键字结尾时语句不可能结束，换行不断句
+# A statement cannot end with these keywords, so a newline after them does not end it
 NO_END_KW = {"and", "or", "not", "in", "is", "if", "elif", "else", "for", "while",
              "with", "def", "class", "lambda", "import", "from", "as", "del",
              "global", "nonlocal", "assert", "await", "async", "try", "except",
              "finally"}
-# 下一行以这些记号开头时，视为上一行的延续
+# A line starting with one of these tokens continues the previous line
 CONT_START = {".", ",", ":", "=", "==", "!=", "<", ">", "<=", ">=", "+=", "-=",
               "*=", "/=", "//=", "%=", "**=", "&=", "|=", "^=", ">>=", "<<=",
               "@=", "->", ":=", "**", "//", "/", "%", "&", "|", "^", "<<", ">>",
@@ -70,7 +70,7 @@ class Token:
         return f"Token({self.kind}, {self.text!r}, {self.line}:{self.col})"
 
 
-# ---------------------------------------------------------------- 词法分析
+# ---------------------------------------------------------------- lexer
 
 class Lexer:
     def __init__(self, src, filename="<pyj>"):
@@ -102,7 +102,7 @@ class Lexer:
         out = []
         nl = True
         while True:
-            # 跳过空白和续行符
+            # skip whitespace and line continuations
             while self.pos < n:
                 ch = src[self.pos]
                 if ch == "\n":
@@ -224,24 +224,24 @@ class Lexer:
         raise self.error("'{' was never closed in f-string", p)
 
 
-# ---------------------------------------------------------------- 转译
+# ---------------------------------------------------------------- transpiler
 
 class Transpiler:
     def __init__(self, src, filename="<pyj>"):
         self.lexer = Lexer(src, filename)
         self.src = src
         self.out = []
-        self.spans = []         # (输出行号, 行内列, 输出长度, 源起点, 源终点)
+        self.spans = []         # (output line index, column, output length, source start, source end)
         self.indent = 0
-        self.stmt = []          # 当前语句的记号
-        self.comments = []      # 当前语句附带的注释
-        self.brackets = []      # 当前语句内未闭合的 ( [ {字面量
-        self.blocks = []        # 每层代码块：[开括号记号, 已输出语句数]
+        self.stmt = []          # tokens of the current statement
+        self.comments = []      # comments attached to the current statement
+        self.brackets = []      # unclosed ( [ and literal { in the current statement
+        self.blocks = []        # one entry per open block: [opening brace token, statements emitted]
 
     def error(self, msg, tok):
         return self.lexer.error(msg, tok.start)
 
-    # -- 辅助判断
+    # -- predicates
 
     def is_compound(self):
         return bool(self.stmt) and self.stmt[0].text in COMPOUND and self.stmt[0].kind == "NAME"
@@ -262,7 +262,7 @@ class Transpiler:
             return True
         return prev.text == ":" or self.can_end(prev)
 
-    # -- 输出
+    # -- output
 
     def render(self, toks):
         """Join tokens; return (text, position of each token within the text)."""
@@ -319,11 +319,11 @@ class Transpiler:
         self.flush()
         _, count = self.blocks.pop()
         if count == 0:
-            # 空代码块补 pass，位置映射到 }
+            # an empty block gets `pass`, mapped to the position of the }
             self.emit("pass", [(0, 4, tok.start, tok.end)], count=False)
         self.indent -= 1
 
-    # -- 主循环
+    # -- main loop
 
     def run(self):
         toks = self.lexer.tokens()
@@ -337,7 +337,7 @@ class Transpiler:
                 if (not self.stmt and prev is not None and prev.text == "{"
                         and prev.line == tok.line and self.blocks and self.blocks[-1][0] is prev
                         and self.blocks[-1][1] == 0):
-                    # `if x { # 注释` -> 注释留在头部那一行
+                    # `if x { # comment` -> keep the comment on the header line
                     self.out[-1] += "  " + text
                 elif self.stmt:
                     self.comments.append(text)
@@ -346,7 +346,7 @@ class Transpiler:
                 i += 1
                 continue
 
-            # 自动断句：换行 + 括号已闭合 + 上一个记号可以结尾 + 当前记号不是延续
+            # automatic statement end: newline + no open brackets + previous token can end a statement + this token is not a continuation
             if (tok.nl_before and self.stmt and not self.brackets
                     and self.can_end(self.stmt[-1])
                     and text not in CONT_START
@@ -431,8 +431,8 @@ class SourceMap:
         return s, text[s:e]
 
     def _src_offset(self, g, end):
-        # 起点找“起点 <= g 的最后一个记号”；终点找“起点 < g 的最后一个记号”，
-        # 这样紧挨着的两个记号（如 `a)`）不会把 a 的终点映射成 ) 的起点。
+        # A start position uses the last token starting at or before g; an end position uses the last token
+        # starting before g, so for adjacent tokens such as `a)` the end of `a` is not mapped to the start of `)`.
         i = bisect.bisect_right(self.gstarts, g - 1 if end else g) - 1
         if i < 0:
             return self.spans[0][2] if self.spans else 0
@@ -468,7 +468,7 @@ def compile_pyj(src, filename="<pyj>", optimize=-1):
     import linecache
 
     if not os.path.isfile(filename):
-        # 让 traceback 能显示源码行
+        # lets tracebacks show source lines
         linecache.cache[filename] = (len(src), None, src.splitlines(True), filename)
     gen, smap = Transpiler(src, filename).run()
     try:
@@ -497,7 +497,7 @@ def _map_syntax_error(e, smap, src, filename):
     return SyntaxError(e.msg, (filename, line, col + 1, text, end_line, end_col))
 
 
-# ---------------------------------------------------------------- import 钩子
+# ---------------------------------------------------------------- import hook
 
 class PyjLoader(importlib.machinery.SourceFileLoader):
     """Loads .pyj modules; compiled code is cached in __pycache__/<name>.pyj.<tag>.pyc."""
@@ -567,13 +567,13 @@ def _startup():
     install_import_hook()
     argv = sys.argv
     if argv and argv[0].endswith(".pyj") and os.path.isfile(argv[0]):
-        # `python app.pyj`：解释器会把 .pyj 当 Python 解析，这里改为执行 `python -m pyj app.pyj`
+        # `python app.pyj`: the interpreter would parse the .pyj file as Python, so run `python -m pyj app.pyj` instead
         orig = getattr(sys, "orig_argv", None) or [sys.executable] + argv
         n = len(argv)
         new = [sys.executable] + orig[1:-n] + ["-m", "pyj"] + orig[-n:]
         if os.name == "posix":
             os.execv(sys.executable, new)
-        # Windows 没有真正的 exec：启动子进程并等它结束；Ctrl+C 交给子进程处理
+        # Windows has no real exec: start a child process and wait for it; Ctrl+C is left to the child
         import subprocess
         proc = subprocess.Popen(new)
         while True:
@@ -583,7 +583,7 @@ def _startup():
                 pass
 
 
-# ---------------------------------------------------------------- 运行
+# ---------------------------------------------------------------- running
 
 def run_source(src, filename, argv, path0="", file=None):
     """Run pyj source as __main__. Returns the exit status (0, or 1 on an uncaught exception)."""
@@ -609,14 +609,14 @@ def run_source(src, filename, argv, path0="", file=None):
         traceback.print_exception(type(e), e, None)
         return 1
     except Exception as e:
-        # 去掉 pyj 自己的栈帧，traceback 看起来和直接运行 Python 一样
+        # drop pyj's own frames so the traceback looks like plain Python's
         tb = e.__traceback__
         here = os.path.normcase(os.path.abspath(__file__))
         while tb is not None and os.path.normcase(os.path.abspath(tb.tb_frame.f_code.co_filename)) == here:
             tb = tb.tb_next
         if sys.excepthook is sys.__excepthook__:
-            # 默认 excepthook 在 3.13 之前是 C 实现，只从磁盘读源码行，看不到 -c / stdin
-            # 代码在 linecache 里登记的源码；traceback 模块会用 linecache
+            # Before 3.13 the default excepthook is implemented in C and reads source lines only from
+            # disk, so it cannot see code from -c or stdin registered in linecache; the traceback module can
             traceback.print_exception(type(e), e.with_traceback(tb), tb)
         else:
             sys.excepthook(type(e), e.with_traceback(tb), tb)
@@ -642,7 +642,7 @@ def _read_stdin():
     return importlib.util.decode_source(data)
 
 
-# ---------------------------------------------------------------- 安装
+# ---------------------------------------------------------------- installation
 
 PTH_NAME = "pyj_autoload.pth"
 _MARK = "pyj launcher (created by `pyj install`)"
@@ -683,8 +683,9 @@ def _write_launcher(scripts):
         return None
     os.makedirs(scripts, exist_ok=True)
     if os.name == "nt":
-        # `(goto) 2>nul` 先结束批处理上下文，同一行剩下的命令仍会执行，cmd 之后不再读本文件，
-        # 所以 `pyj uninstall` 删掉它也不会报 "The batch file cannot be found"；退出码来自 python
+        # `(goto) 2>nul` ends the batch context while the rest of the line still runs, so cmd.exe never reads
+        # this file again; `pyj uninstall` can delete it without "The batch file cannot be found".
+        # The exit status is Python's.
         text = f'@echo off\r\nrem {_MARK}\r\n(goto) 2>nul & "{sys.executable}" -m pyj %*\r\n'
     else:
         text = f"#!{sys.executable}\n# {_MARK}\nimport sys\nfrom pyj import main\nsys.exit(main())\n"
@@ -761,7 +762,7 @@ def uninstall():
     return 0
 
 
-# ---------------------------------------------------------------- 命令行
+# ---------------------------------------------------------------- command line
 
 def _print_syntax_error(e):
     print(f"{e.filename}:{e.lineno}:{e.offset}: SyntaxError: {e.msg}", file=sys.stderr)
@@ -806,7 +807,7 @@ def main(argv=None):
         print(f"pyj {__version__}")
         return 0
     if first.endswith(".pyj"):
-        return run_file(first, argv[1:])     # pyj app.pyj ... 等同 pyj run app.pyj ...
+        return run_file(first, argv[1:])     # pyj app.pyj ... is the same as pyj run app.pyj ...
 
     parser = argparse.ArgumentParser(prog="pyj", usage="pyj {run,build,install,uninstall} ... (see `pyj -h`)", description="Write Python with braces")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -853,9 +854,9 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
-    # `python pyj.py ...` 必须运行这个文件本身：
-    # 已安装的 pyj（可能是旧版本）会在启动时被 .pth 导入，这里用本文件替换它，
-    # 并去掉它装的 import 钩子；同时保证整个进程只有一个名为 pyj 的模块。
+    # `python pyj.py ...` must run this very file. An installed pyj (possibly an older version) is
+    # imported at startup by the .pth file, so replace it with this file and remove its import hook.
+    # This also keeps a single module named pyj in the process.
     _here = os.path.normcase(os.path.abspath(__file__))
     _mod = sys.modules.get("pyj")
     if _mod is None or os.path.normcase(os.path.abspath(getattr(_mod, "__file__", "") or "")) != _here:
