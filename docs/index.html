@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pyj — Python with braces</title>
+<meta name="description" content="pyj lets you write Python with curly braces and semicolons like JavaScript. .pyj files run and import transparently, and tracebacks point back to the original source line and column.">
+<meta name="keywords" content="python braces, python curly braces, python without indentation, python one-liner, python transpiler, pyj, pybrace">
+<link rel="canonical" href="https://yyszh01.github.io/pyj/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="pyj — Python with braces">
+<meta property="og:description" content="Write Python with { } blocks and ; separators. Transparent import and run, source-mapped tracebacks, zero dependencies.">
+<meta property="og:url" content="https://yyszh01.github.io/pyj/">
+<meta name="twitter:card" content="summary">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareSourceCode",
+  "name": "pyj",
+  "alternateName": "pybrace",
+  "description": "Write Python with braces and semicolons; .pyj files run transparently and tracebacks point back to the source.",
+  "codeRepository": "https://github.com/yyszh01/pyj",
+  "programmingLanguage": "Python",
+  "license": "https://opensource.org/licenses/MIT",
+  "author": {"@type": "Person", "name": "yyszh01"}
+}
+</script>
+<style>
+:root {
+  --bg: #fbfbfa; --fg: #1f2328; --muted: #5d6470; --accent: #3a6fd8;
+  --code-bg: #f0f1f3; --border: #dcdfe4;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #15171a; --fg: #e6e8eb; --muted: #9aa1ab; --accent: #7aa5ff;
+          --code-bg: #1f2227; --border: #30343a; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg);
+       font: 16px/1.65 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 760px; margin: 0 auto; padding: 48px 16px 64px; }
+h1 { font-size: 2.2rem; margin: 0 0 4px; }
+h2 { font-size: 1.3rem; margin: 40px 0 8px; }
+.tagline { color: var(--muted); font-size: 1.15rem; margin: 0 0 24px; }
+a { color: var(--accent); }
+pre, code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.9em; }
+pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px;
+      padding: 14px 16px; overflow-x: auto; line-height: 1.5; }
+:not(pre) > code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+.links { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 28px; }
+.links a { border: 1px solid var(--border); border-radius: 6px; padding: 6px 14px;
+           text-decoration: none; }
+ul { padding-left: 1.2em; }
+li { margin: 4px 0; }
+footer { margin-top: 48px; color: var(--muted); font-size: 0.9rem; }
+</style>
+</head>
+<body>
+<main>
+<h1>pyj</h1>
+<p class="tagline">Write Python like JavaScript: blocks in <code>{ }</code>, statements separated by <code>;</code> or newlines, and no significant whitespace.</p>
+
+<div class="links">
+  <a href="https://github.com/yyszh01/pyj">GitHub</a>
+  <a href="https://pypi.org/project/pybrace/">PyPI</a>
+  <a href="https://github.com/yyszh01/pyj/blob/main/README.zh-CN.md">简体中文</a>
+  <a href="https://github.com/yyszh01/pyj/blob/main/README.ja.md">日本語</a>
+</div>
+
+<pre><code>def fib(n) { a, b = 0, 1; for _ in range(n) { a, b = b, a + b }; return a }
+
+if n &lt; 0 { print("negative") } else if n == 0 { print("zero") }
+    else { print("positive") }
+
+config = {"name": "pyj", "tags": {"a", "b"}}   # dicts and sets work as usual</code></pre>
+
+<h2>Features</h2>
+<ul>
+  <li><strong>Transparent execution</strong>: once installed, <code>python app.pyj</code> just works, any program can <code>import</code> a <code>.pyj</code> module, and <code>.py</code> and <code>.pyj</code> files can be mixed freely.</li>
+  <li><strong>Errors point to your source</strong>: tracebacks, syntax errors and <code>inspect.getsource</code> show the exact <code>.pyj</code> line and column.</li>
+  <li><strong>Dicts and sets work as usual</strong>: a <code>{</code> opens a block only at the end of a statement header.</li>
+  <li><strong>Shell one-liners</strong>: <code>pyj -c 'for i in range(3) { print(i) }'</code>, or pipe code into <code>pyj</code>.</li>
+  <li><strong>Single file, zero dependencies</strong>: installs itself without pip or root.</li>
+  <li><strong>Cross-platform</strong>: Python 3.10+, tested on Linux, macOS and Windows.</li>
+</ul>
+
+<h2>Install</h2>
+<pre><code>pip install pybrace</code></pre>
+<p>On Debian, Ubuntu and other systems where pip is restricted, no pip or <code>sudo</code> is needed:</p>
+<pre><code>curl -O https://raw.githubusercontent.com/yyszh01/pyj/main/pyj.py
+python3 pyj.py install
+rm pyj.py</code></pre>
+
+<h2>Errors point back to the source</h2>
+<pre><code>  File "util.pyj", line 1, in divide
+    def divide(a, b) { return a /
+                              ~~^
+        b }
+        ~
+ZeroDivisionError: division by zero</code></pre>
+<p>While converting, pyj records where each token came from. It parses the generated code with <code>ast.parse</code>, rewrites every AST node's position back to the source position, and then compiles.</p>
+
+<p>Full documentation, syntax rules and a comparison with similar projects are in the <a href="https://github.com/yyszh01/pyj#readme">README</a>.</p>
+
+<footer>MIT License · <a href="https://github.com/yyszh01/pyj">github.com/yyszh01/pyj</a></footer>
+</main>
+</body>
+</html>
