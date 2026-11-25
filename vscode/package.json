@@ -4,6 +4,8 @@
   "description": "Syntax highlighting for .pyj (Python with { } blocks), with a guided install of pyj, and commands to run a file or convert it to .py.",
   "version": "0.1.0",
   "publisher": "yyszh01",
+  "icon": "images/icon.png",
+  "galleryBanner": { "color": "#1E293B", "theme": "dark" },
   "license": "MIT",
   "homepage": "https://github.com/yyszh01/pyj/tree/main/vscode",
   "repository": { "type": "git", "url": "https://github.com/yyszh01/pyj.git", "directory": "vscode" },

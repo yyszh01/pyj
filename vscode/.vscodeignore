@@ -3,3 +3,5 @@ test/**
 *.vsix
 .gitignore
 package-lock.json
+tools/**
+images/*.svg

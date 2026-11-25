@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <title>pyj</title>
+  <rect width="256" height="256" rx="52" fill="#1e293b"/>
+  <path d="M110 58 Q84 58 84 82 L84 104 Q84 128 58 128 Q84 128 84 152 L84 174 Q84 198 110 198" stroke="#4b8bbe" fill="none" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M146 58 Q172 58 172 82 L172 104 Q172 128 198 128 Q172 128 172 152 L172 174 Q172 198 146 198" stroke="#ffd43b" fill="none" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
