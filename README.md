@@ -53,6 +53,7 @@ if __name__ == "__main__":
 - **Errors point to your source**: tracebacks, syntax errors and `inspect.getsource` all show `.pyj` lines and columns.
 - **Dicts and sets work as usual**: pyj tells a block `{` apart from a literal `{`.
 - **Cross-platform**: Python 3.8+, tested in CI on Linux, macOS and Windows.
+- **Editor support**: a [VS Code / code-server extension](https://github.com/yyszh01/pyj/tree/main/vscode) with highlighting and a guided install of pyj. Download the `.vsix`, or the single-file `pyj.py`, from [Releases](https://github.com/yyszh01/pyj/releases).
 
 ## Installation
 

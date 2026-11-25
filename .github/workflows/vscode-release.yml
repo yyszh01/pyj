@@ -1,0 +1,70 @@
+name: VS Code extension release
+
+# Push a tag vscode-v<version> (the version in vscode/package.json), e.g.
+#   git tag vscode-v0.1.0 && git push origin vscode-v0.1.0
+# Tests and packages the extension, attaches the .vsix to a GitHub Release (no token needed),
+# and publishes it to Open VSX when the repository has an OVSX_PAT secret (skipped otherwise).
+on:
+  push:
+    tags: ["vscode-v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: vscode
+    env:
+      GH_TOKEN: ${{ github.token }}
+      OVSX_PAT: ${{ secrets.OVSX_PAT }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.x"
+
+      - name: Tag matches package.json
+        id: v
+        run: |
+          version=$(node -p "require('./package.json').version")
+          [ "vscode-v$version" = "$GITHUB_REF_NAME" ] || { echo "Tag $GITHUB_REF_NAME does not match package.json ($version)"; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - run: npm ci --ignore-scripts
+      - name: Tests
+        run: npm test
+      - name: Package
+        run: npx --no-install vsce package --no-dependencies
+
+      - name: Release notes from vscode/CHANGELOG.md
+        run: |
+          v="${{ steps.v.outputs.version }}"
+          awk -v v="$v" '/^## /{ if (on) exit; if (index($0, "## " v) == 1) { on = 1; next } } on' CHANGELOG.md > notes.md || true
+          [ -s notes.md ] || echo "See [vscode/CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/vscode/CHANGELOG.md)." > notes.md
+          cat >> notes.md <<EOF
+
+          ### Install
+
+          Download **pyj-$v.vsix** below, then in VS Code or code-server: Extensions view → **⋯** → **Install from VSIX…**
+          Or from a terminal: \`code --install-extension pyj-$v.vsix\` (\`code-server --install-extension pyj-$v.vsix\`).
+
+          To run .pyj files you also need pyj itself; the extension offers to install it. See the [installation guide](https://github.com/${{ github.repository }}/tree/main/vscode#installing-pyj).
+          EOF
+          cat notes.md
+
+      - name: GitHub Release
+        run: |
+          gh release create "$GITHUB_REF_NAME" "pyj-${{ steps.v.outputs.version }}.vsix" \
+            --verify-tag --title "VS Code extension ${{ steps.v.outputs.version }}" --notes-file notes.md --latest=false
+
+      - name: Publish to Open VSX
+        if: env.OVSX_PAT != ''
+        run: |
+          npx --no-install ovsx create-namespace "$(node -p "require('./package.json').publisher")" || echo "(namespace already exists)"
+          npx --no-install ovsx publish --packagePath "pyj-${{ steps.v.outputs.version }}.vsix"

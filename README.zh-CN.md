@@ -53,6 +53,7 @@ if __name__ == "__main__":
 - **报错指回源码**：traceback、语法错误、`inspect.getsource` 都显示 `.pyj` 源码的行和列。
 - **字典、集合照常写**：能自动区分代码块的 `{` 和字面量的 `{`。
 - **跨平台**：Python 3.8+，在 Linux / macOS / Windows 上由 CI 测试。
+- **编辑器支持**：有 [VS Code / code-server 插件](https://github.com/yyszh01/pyj/tree/main/vscode)，提供语法高亮和 pyj 的安装引导。插件 `.vsix` 和单文件版 `pyj.py` 都可以在 [Releases](https://github.com/yyszh01/pyj/releases) 下载。
 
 ## 安装
 

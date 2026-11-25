@@ -1,0 +1,91 @@
+name: GitHub Release
+
+# A GitHub Release for every pyj version, with the wheel, the sdist and the single-file pyj.py
+# attached, and that version's section of CHANGELOG.md as the notes.
+# - push of a v* tag (next to release.yml, which publishes to PyPI)
+# - push to main that changes this file: creates the release for the current version if it is
+#   missing (this is how 0.1.5 got its release)
+# - by hand: Actions -> GitHub Release -> Run workflow, with a tag such as v0.1.5
+on:
+  push:
+    tags: ["v*"]
+    branches: [main]
+    paths: [".github/workflows/github-release.yml"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release, e.g. v0.1.5"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Which tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = workflow_dispatch ]; then
+            tag="${{ inputs.tag }}"
+          elif [ "${{ github.ref_type }}" = tag ]; then
+            tag="$GITHUB_REF_NAME"
+          else
+            # push to main: the version in pyj.py on main
+            tag=v$(curl -fsSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/pyj.py" | sed -n 's/^__version__ = "\(.*\)"/\1/p')
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+          if gh release view "$tag" -R "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"; echo "Release $tag already exists"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v5
+        if: steps.tag.outputs.exists == 'false'
+        with:
+          ref: ${{ steps.tag.outputs.tag }}
+
+      - uses: actions/setup-python@v6
+        if: steps.tag.outputs.exists == 'false'
+        with:
+          python-version: "3.x"
+
+      - name: Build
+        if: steps.tag.outputs.exists == 'false'
+        run: |
+          version=$(python -c "import pyj; print(pyj.__version__)")
+          [ "$version" = "${{ steps.tag.outputs.version }}" ] || { echo "pyj.py says $version, tag is ${{ steps.tag.outputs.tag }}"; exit 1; }
+          python -m pip install build
+          python -m build
+          cp pyj.py dist/pyj.py
+          ls -l dist
+
+      - name: Release notes from CHANGELOG.md
+        if: steps.tag.outputs.exists == 'false'
+        run: |
+          v="${{ steps.tag.outputs.version }}"
+          # the "## <version>" section, up to the next "## "
+          awk -v v="$v" '/^## /{ if (on) exit; if (index($0, "## " v) == 1) { on = 1; next } } on' CHANGELOG.md > notes.md || true
+          [ -s notes.md ] || echo "See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)." > notes.md
+          cat >> notes.md <<EOF
+
+          ### Install
+
+          \`\`\`bash
+          pip install pybrace==$v
+          \`\`\`
+
+          Without pip: download **pyj.py** below, then \`python3 pyj.py install\`. Or run it directly: \`python3 pyj.py run app.pyj\`.
+          EOF
+          cat notes.md
+
+      - name: Create the release
+        if: steps.tag.outputs.exists == 'false'
+        run: |
+          gh release create "${{ steps.tag.outputs.tag }}" dist/* \
+            --verify-tag --title "pyj ${{ steps.tag.outputs.version }}" --notes-file notes.md --latest

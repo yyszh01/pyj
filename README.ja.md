@@ -53,6 +53,7 @@ if __name__ == "__main__":
 - **エラーはソースを指す**：トレースバック、構文エラー、`inspect.getsource` のすべてが `.pyj` の行と列を示します。
 - **辞書や集合はいつもどおり**：ブロックの `{` とリテラルの `{` を区別します。
 - **クロスプラットフォーム**：Python 3.8 以上。Linux・macOS・Windows で CI テストしています。
+- **エディター対応**：[VS Code / code-server 拡張機能](https://github.com/yyszh01/pyj/tree/main/vscode)で、シンタックスハイライトと pyj のインストール案内が使えます。拡張機能の `.vsix` と単一ファイル版の `pyj.py` は [Releases](https://github.com/yyszh01/pyj/releases) からダウンロードできます。
 
 ## インストール
 
