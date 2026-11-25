@@ -204,10 +204,11 @@ class TestInstall(unittest.TestCase):
                                  capture_output=True, text=True, env=env)
             self.assertEqual(run.stdout, "ok arg\n", run.stderr)
 
+            # ask the installed pyj where it put the launcher (sysconfig.get_preferred_scheme is 3.10+)
             scripts = subprocess.run(
-                [sys.executable, "-c", "import sysconfig; print(sysconfig.get_path('scripts', "
-                 "sysconfig.get_preferred_scheme('user')))"],
-                capture_output=True, text=True, env=env).stdout.strip()
+                [sys.executable, "-c", "import pyj; print(pyj._install_dirs()[1])"],
+                cwd=work, capture_output=True, text=True, env=env).stdout.strip()
+            self.assertTrue(scripts)
             launcher = os.path.join(scripts, "pyj.cmd" if os.name == "nt" else "pyj")
             cmd = ["cmd", "/c", launcher] if os.name == "nt" else [launcher]
             out = subprocess.run(cmd + ["-c", "if 1 { print('launcher') }"],
