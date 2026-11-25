@@ -7,13 +7,42 @@
 
 English | [简体中文](https://github.com/yyszh01/pyj/blob/main/README.zh-CN.md) | [日本語](https://github.com/yyszh01/pyj/blob/main/README.ja.md)
 
-Write Python like JavaScript: blocks in `{ }`, statements separated by `;` or newlines, and no significant whitespace. `.pyj` files are converted to standard Python transparently at import and run time, and errors point back to the original `.pyj` lines and columns.
+**Python that survives copy-paste.** Write blocks in `{ }` instead of indentation, and your code keeps working after a chat app, a web form, a template or a shell one-liner has eaten the whitespace. `.pyj` files run directly with `python`, import like normal modules, and tracebacks point back to your original lines and columns.
+
+```bash
+pip install pybrace      # Python 3.10+; on PyPI it is "pybrace", the module and the command are "pyj"
+pyj -c 'for i in range(3) { if i % 2 { print(i, "odd") } else { print(i, "even") } }'
+```
 
 ```python
+# fib.pyj — no significant whitespace, so reformatting can't break it
 def fib(n) { a, b = 0, 1; for _ in range(n) { a, b = b, a + b }; return a }
 
-if n < 0 { print("negative") } else if n == 0 { print("zero") }
-    else { print("positive") }
+if __name__ == "__main__" { print([fib(i) for i in range(10)]) }
+```
+
+```console
+$ python fib.pyj
+[0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
+```
+
+### Who is it for?
+
+- **Code that travels**: snippets pasted into chats, issue comments, spreadsheets, database fields, templates or `python -c`, where indentation gets lost or mangled.
+- **Programmers coming from C, Java or JavaScript** who like to see where a block ends.
+- **Teaching, generated code, and one-liners**: anything that is easier to write without counting spaces.
+
+Python's own answer to braces is `from __future__ import braces` → `SyntaxError: not a chance`. pyj doesn't change Python itself: it is a single-file, zero-dependency preprocessor, and you can leave it any time — `pyj build fib.pyj` writes a plain, indented `fib.py`:
+
+```python
+# fib.pyj — no significant whitespace, so reformatting can't break it
+def fib(n):
+    a, b = 0, 1
+    for _ in range(n):
+        a, b = b, a + b
+    return a
+if __name__ == "__main__":
+    print([fib(i) for i in range(10)])
 ```
 
 ## Features

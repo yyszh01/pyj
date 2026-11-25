@@ -7,13 +7,42 @@
 
 [English](https://github.com/yyszh01/pyj/blob/main/README.md) | [简体中文](https://github.com/yyszh01/pyj/blob/main/README.zh-CN.md) | 日本語
 
-JavaScript のように Python を書けます。ブロックは `{ }` で囲み、文は `;` または改行で区切り、インデントには意味がありません。`.pyj` ファイルは import 時・実行時に標準の Python へ透過的に変換され、エラーは元の `.pyj` の行と列を指します。
+**コピペしても壊れない Python。** ブロックをインデントではなく `{ }` で書くので、チャットアプリや Web フォーム、テンプレート、シェルのワンライナーで空白が消えても、コードはそのまま動きます。`.pyj` ファイルは `python` で直接実行でき、普通のモジュールと同じように import でき、トレースバックは元のソースの行と列を指します。
+
+```bash
+pip install pybrace      # Python 3.10 以上。PyPI 上の名前は pybrace、モジュールとコマンドは pyj
+pyj -c 'for i in range(3) { if i % 2 { print(i, "奇数") } else { print(i, "偶数") } }'
+```
 
 ```python
+# fib.pyj — インデントに意味がないので、整形し直しても壊れない
 def fib(n) { a, b = 0, 1; for _ in range(n) { a, b = b, a + b }; return a }
 
-if n < 0 { print("negative") } else if n == 0 { print("zero") }
-    else { print("positive") }
+if __name__ == "__main__" { print([fib(i) for i in range(10)]) }
+```
+
+```console
+$ python fib.pyj
+[0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
+```
+
+### こんな人に
+
+- **持ち運ばれるコード**：チャット、issue のコメント、スプレッドシート、データベースのフィールド、テンプレート、`python -c` に貼り付けるコード片。インデントが消えたり崩れたりしがちな場所です。
+- **C・Java・JavaScript から来たプログラマー**：ブロックの終わりが目で見て分かる方が好きな人に。
+- **教育、自動生成コード、ワンライナー**：スペースを数えずに書きたいあらゆる場面に。
+
+波括弧に対する Python 自身の答えは `from __future__ import braces` → `SyntaxError: not a chance` です。pyj は Python 本体を変えません。1 ファイル・依存関係なしのプリプロセッサーなので、いつでもやめられます。`pyj build fib.pyj` で、普通にインデントされた `fib.py` が出力されます：
+
+```python
+# fib.pyj — インデントに意味がないので、整形し直しても壊れない
+def fib(n):
+    a, b = 0, 1
+    for _ in range(n):
+        a, b = b, a + b
+    return a
+if __name__ == "__main__":
+    print([fib(i) for i in range(10)])
 ```
 
 ## 特徴

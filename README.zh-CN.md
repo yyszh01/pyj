@@ -7,12 +7,42 @@
 
 [English](https://github.com/yyszh01/pyj/blob/main/README.md) | 简体中文 | [日本語](https://github.com/yyszh01/pyj/blob/main/README.ja.md)
 
-不用管换行和缩进，像 JS 一样写 Python。`.pyj` 文件在运行时透明地转换成标准 Python，报错直接指回 `.pyj` 源码的行号和列号。
+**复制粘贴也不会坏的 Python。** 代码块用 `{ }` 而不是缩进来写，代码被聊天软件、网页表单、模板或者命令行一行脚本吃掉了空格和缩进，照样能跑。`.pyj` 文件可以直接用 `python` 运行，像普通模块一样 import，报错直接指回源码的行号和列号。
+
+```bash
+pip install pybrace      # 需要 Python 3.10+；PyPI 上叫 pybrace，模块和命令都叫 pyj
+pyj -c 'for i in range(3) { if i % 2 { print(i, "奇数") } else { print(i, "偶数") } }'
+```
+
 ```python
+# fib.pyj — 缩进没有意义，怎么重新排版都不会坏
 def fib(n) { a, b = 0, 1; for _ in range(n) { a, b = b, a + b }; return a }
 
-if n < 0 { print("负数") } else if n == 0 { print("零") }
-    else { print("正数") }
+if __name__ == "__main__" { print([fib(i) for i in range(10)]) }
+```
+
+```console
+$ python fib.pyj
+[0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
+```
+
+### 适合谁用？
+
+- **要到处传的代码**：贴到聊天软件、issue 评论、表格、数据库字段、模板或 `python -c` 里的代码片段，缩进很容易丢失或错乱。
+- **从 C、Java、JavaScript 转过来的程序员**：习惯一眼看清代码块在哪里结束。
+- **教学、自动生成的代码和一行脚本**：凡是不想数空格的场合。
+
+Python 自己对花括号的回答是 `from __future__ import braces` → `SyntaxError: not a chance`。pyj 并不改动 Python 本身：它只是一个单文件、零依赖的预处理器，随时可以不用——`pyj build fib.pyj` 就会生成一份普通的、带缩进的 `fib.py`：
+
+```python
+# fib.pyj — 缩进没有意义，怎么重新排版都不会坏
+def fib(n):
+    a, b = 0, 1
+    for _ in range(n):
+        a, b = b, a + b
+    return a
+if __name__ == "__main__":
+    print([fib(i) for i in range(10)])
 ```
 
 ## 特点
