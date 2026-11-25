@@ -103,10 +103,12 @@
   },
   "scripts": {
     "test": "node --test test/grammar.test.js test/extension.test.js",
-    "package": "vsce package"
+    "package": "vsce package --no-dependencies",
+    "publish:openvsx": "ovsx publish --packagePath pyj-$npm_package_version.vsix"
   },
   "devDependencies": {
     "@vscode/vsce": "3.6.2",
+    "ovsx": "1.4.0",
     "vscode-oniguruma": "2.0.1",
     "vscode-textmate": "9.2.0"
   }
