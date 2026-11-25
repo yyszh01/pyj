@@ -1,0 +1,39 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "pyj",
+  "scopeName": "source.pyj",
+  "comment": "pyj: Python with braces. Everything is Python (source.python, built into VS Code); this grammar only adds code blocks in { } so that statements inside them keep their Python highlighting instead of being read as a dict, and recognises `def name` / `class Name` without a trailing colon.",
+  "patterns": [
+    { "include": "#function-def" },
+    { "include": "#class-def" },
+    { "include": "#block" },
+    { "include": "source.python" }
+  ],
+  "repository": {
+    "function-def": {
+      "comment": "`def name` (from the leading whitespace, so that it wins over the Python grammar's own def rule, which also starts there) — the parameters and the rest of the line are left to the Python grammar, whose own rule would wait for a ':' that pyj does not need",
+      "match": "\\s*\\b(?:(async)\\s+)?(def)\\s+([[:alpha:]_][[:word:]]*)",
+      "captures": {
+        "1": { "name": "storage.type.function.async.python" },
+        "2": { "name": "storage.type.function.python" },
+        "3": { "name": "entity.name.function.python" }
+      }
+    },
+    "class-def": {
+      "match": "\\s*\\b(class)\\s+([[:alpha:]_][[:word:]]*)",
+      "captures": {
+        "1": { "name": "storage.type.class.python" },
+        "2": { "name": "entity.name.type.class.python" }
+      }
+    },
+    "block": {
+      "comment": "Same rule as pyj itself: '{' opens a block when it follows a name, number, string, closing bracket (including the '}' of a set or dict, as in `if k in {1, 2} {`) or ':' — never after a keyword that expects an expression (return {...}, x in {...}, a and {...}, lambda: ...). Inside a block everything is pyj again, so blocks nest.",
+      "begin": "(?<=[[:word:])\\]}'\":])(?<!\\breturn|\\byield|\\bin|\\band|\\bor|\\bnot|\\bis|\\bawait|\\bassert|\\bdel|\\braise|\\blambda|\\bif|\\belif|\\bwhile)\\s*(\\{)",
+      "beginCaptures": { "1": { "name": "punctuation.section.block.begin.pyj" } },
+      "end": "\\}",
+      "endCaptures": { "0": { "name": "punctuation.section.block.end.pyj" } },
+      "name": "meta.block.pyj",
+      "patterns": [ { "include": "$self" } ]
+    }
+  }
+}

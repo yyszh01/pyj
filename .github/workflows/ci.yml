@@ -82,3 +82,23 @@ jobs:
           python demo.pyj
           python -c "import demo"
           pyj build demo.pyj -o -
+
+  vscode:
+    name: VS Code extension
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: vscode
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.x"
+      - run: npm ci --ignore-scripts
+      - name: Tests (grammar and extension logic)
+        run: npm test
+      - name: Package
+        run: npx --no-install vsce package --no-dependencies

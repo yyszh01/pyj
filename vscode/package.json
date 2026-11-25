@@ -1,0 +1,111 @@
+{
+  "name": "pyj",
+  "displayName": "pyj — Python with braces",
+  "description": "Syntax highlighting for .pyj (Python with { } blocks), with a guided install of pyj, and commands to run a file or convert it to .py.",
+  "version": "0.1.0",
+  "publisher": "yyszh01",
+  "license": "MIT",
+  "homepage": "https://github.com/yyszh01/pyj/tree/main/vscode",
+  "repository": { "type": "git", "url": "https://github.com/yyszh01/pyj.git", "directory": "vscode" },
+  "bugs": { "url": "https://github.com/yyszh01/pyj/issues" },
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Programming Languages"],
+  "keywords": ["python", "pyj", "pybrace", "braces", "curly braces", "transpiler"],
+  "main": "./extension.js",
+  "activationEvents": ["onLanguage:pyj"],
+  "contributes": {
+    "languages": [
+      {
+        "id": "pyj",
+        "aliases": ["pyj", "Python with braces"],
+        "extensions": [".pyj"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      { "language": "pyj", "scopeName": "source.pyj", "path": "./syntaxes/pyj.tmLanguage.json" }
+    ],
+    "commands": [
+      { "command": "pyj.run", "title": "Run This File", "category": "pyj", "icon": "$(play)" },
+      { "command": "pyj.build", "title": "Convert to Python (.py)", "category": "pyj", "icon": "$(file-code)" },
+      { "command": "pyj.checkInstall", "title": "Check Installation", "category": "pyj" },
+      { "command": "pyj.install", "title": "Install or Upgrade pyj…", "category": "pyj" },
+      { "command": "pyj.newFile", "title": "New pyj File", "category": "pyj" }
+    ],
+    "menus": {
+      "editor/title/run": [
+        { "command": "pyj.run", "when": "editorLangId == pyj", "group": "navigation@0" }
+      ],
+      "editor/context": [
+        { "command": "pyj.run", "when": "editorLangId == pyj", "group": "pyj@1" },
+        { "command": "pyj.build", "when": "editorLangId == pyj", "group": "pyj@2" }
+      ],
+      "commandPalette": [
+        { "command": "pyj.run", "when": "editorLangId == pyj" },
+        { "command": "pyj.build", "when": "editorLangId == pyj" }
+      ]
+    },
+    "configuration": {
+      "title": "pyj",
+      "properties": {
+        "pyj.pythonPath": {
+          "type": "string",
+          "default": "",
+          "scope": "resource",
+          "markdownDescription": "Python used to run, convert and install pyj. Empty: the interpreter selected in the Python extension if it is installed, else `python3` (`python` on Windows)."
+        },
+        "pyj.checkOnOpen": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "When a `.pyj` file is opened, check once per session that pyj is installed, and offer to install it."
+        }
+      }
+    },
+    "walkthroughs": [
+      {
+        "id": "getStarted",
+        "title": "Get started with pyj",
+        "description": "Install pyj, write your first .pyj file, run it, and turn it into plain Python.",
+        "steps": [
+          {
+            "id": "install",
+            "title": "Install pyj",
+            "description": "pyj runs .pyj files with your own Python (3.8+). Install it once for the Python you use.\n[Install pyj](command:pyj.install)\n[Check installation](command:pyj.checkInstall)",
+            "media": { "markdown": "walkthrough/install.md" },
+            "completionEvents": ["onContext:pyj.installed"]
+          },
+          {
+            "id": "newFile",
+            "title": "Write some pyj",
+            "description": "Blocks go in { }, so indentation never matters. Open a sample file to try it.\n[Open a sample](command:pyj.newFile)",
+            "media": { "markdown": "walkthrough/write.md" },
+            "completionEvents": ["onCommand:pyj.newFile"]
+          },
+          {
+            "id": "run",
+            "title": "Run it",
+            "description": "Save the file as .pyj, then press the ▷ button in the editor title, or run the command below. Errors point back to your .pyj lines.\n[Run this file](command:pyj.run)",
+            "media": { "markdown": "walkthrough/run.md" },
+            "completionEvents": ["onCommand:pyj.run"]
+          },
+          {
+            "id": "build",
+            "title": "Turn it into plain Python",
+            "description": "Need a normal .py file? pyj writes one next to your .pyj, properly indented.\n[Convert to Python](command:pyj.build)",
+            "media": { "markdown": "walkthrough/build.md" },
+            "completionEvents": ["onCommand:pyj.build"]
+          }
+        ]
+      }
+    ]
+  },
+  "scripts": {
+    "test": "node --test test/grammar.test.js test/extension.test.js",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "3.6.2",
+    "vscode-oniguruma": "2.0.1",
+    "vscode-textmate": "9.2.0"
+  }
+}
