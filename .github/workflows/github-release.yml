@@ -8,7 +8,7 @@ name: GitHub Release
 # - by hand: Actions -> GitHub Release -> Run workflow, with a tag such as v0.1.5
 on:
   push:
-    tags: ["v*"]
+    tags: ["v[0-9]*"]   # not vscode-v* (vscode-release.yml)
     branches: [main]
     paths: [".github/workflows/github-release.yml"]
   workflow_dispatch:
@@ -87,5 +87,9 @@ jobs:
       - name: Create the release
         if: steps.tag.outputs.exists == 'false'
         run: |
-          gh release create "${{ steps.tag.outputs.tag }}" dist/* \
-            --verify-tag --title "pyj ${{ steps.tag.outputs.version }}" --notes-file notes.md --latest
+          # on failure, repeat gh's message as an annotation (readable without signing in)
+          if ! out=$(gh release create "${{ steps.tag.outputs.tag }}" dist/* \
+               --verify-tag --title "pyj ${{ steps.tag.outputs.version }}" --notes-file notes.md --latest 2>&1); then
+            echo "$out"; echo "::error title=gh release create::$(echo "$out" | tr '\n' ' ' | cut -c1-500)"; exit 1
+          fi
+          echo "$out"

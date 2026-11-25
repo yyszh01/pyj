@@ -3,7 +3,7 @@ name: Release
 # Publishes to PyPI when a v* tag is pushed, e.g.: git tag v0.1.0 && git push origin v0.1.0
 on:
   push:
-    tags: ["v*"]
+    tags: ["v[0-9]*"]   # not vscode-v* (the VS Code extension has its own workflow)
 
 jobs:
   build:
