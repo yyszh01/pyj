@@ -666,7 +666,16 @@ def _install_dirs():
     import site
     import sysconfig
     if sys.prefix == sys.base_prefix and site.ENABLE_USER_SITE:
-        scheme = sysconfig.get_preferred_scheme("user")
+        if hasattr(sysconfig, "get_preferred_scheme"):
+            scheme = sysconfig.get_preferred_scheme("user")
+        else:
+            # before 3.10: the same choice that sysconfig.get_preferred_scheme("user") makes
+            if os.name == "nt":
+                scheme = "nt_user"
+            elif sys.platform == "darwin" and getattr(sys, "_framework", None):
+                scheme = "osx_framework_user"
+            else:
+                scheme = "posix_user"
         return site.getusersitepackages(), sysconfig.get_path("scripts", scheme)
     return sysconfig.get_path("purelib"), sysconfig.get_path("scripts")
 
