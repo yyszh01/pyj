@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/yyszh01/pyj/actions/workflows/ci.yml/badge.svg)](https://github.com/yyszh01/pyj/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/pybrace)](https://pypi.org/project/pybrace/)
-![Python](https://img.shields.io/badge/python-3.10%2B-blue)
+![Python](https://img.shields.io/badge/python-3.8%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 English | [简体中文](https://github.com/yyszh01/pyj/blob/main/README.zh-CN.md) | [日本語](https://github.com/yyszh01/pyj/blob/main/README.ja.md)
@@ -10,7 +10,7 @@ English | [简体中文](https://github.com/yyszh01/pyj/blob/main/README.zh-CN.m
 **Python that survives copy-paste.** Write blocks in `{ }` instead of indentation, and your code keeps working after a chat app, a web form, a template or a shell one-liner has eaten the whitespace. `.pyj` files run directly with `python`, import like normal modules, and tracebacks point back to your original lines and columns.
 
 ```bash
-pip install pybrace      # Python 3.10+; on PyPI it is "pybrace", the module and the command are "pyj"
+pip install pybrace      # Python 3.8+; on PyPI it is "pybrace", the module and the command are "pyj"
 pyj -c 'for i in range(3) { if i % 2 { print(i, "odd") } else { print(i, "even") } }'
 ```
 
@@ -52,7 +52,7 @@ if __name__ == "__main__":
 - **Shell one-liners too**: `pyj -c 'for i in range(3) { print(i) }'`, or pipe code into `pyj`.
 - **Errors point to your source**: tracebacks, syntax errors and `inspect.getsource` all show `.pyj` lines and columns.
 - **Dicts and sets work as usual**: pyj tells a block `{` apart from a literal `{`.
-- **Cross-platform**: Python 3.10+, tested in CI on Linux, macOS and Windows.
+- **Cross-platform**: Python 3.8+, tested in CI on Linux, macOS and Windows.
 
 ## Installation
 
@@ -110,7 +110,7 @@ pyj build -c 'def f(x) { return x * 2 }'   # print the Python for some code (pyj
 - `.pyj` and `.py` modules can import each other. If both `foo.py` and `foo.pyj` exist, `foo.pyj` wins.
 - Compiled code is cached in `__pycache__/<module>.pyj.cpython-XY.pyc`. The cache is invalidated when the source file or pyj itself changes.
 - Code run with `-c` or from stdin gets the same error locations as files: the traceback shows the offending line of your code.
-- How `python app.pyj` works: at startup Python runs `pyj_autoload.pth` from site-packages. When it sees that the script is a `.pyj` file, it replaces the process with `python -m pyj app.pyj` (on Windows it starts a child process instead). Interpreter flags are preserved.
+- How `python app.pyj` works: at startup Python runs `pyj_autoload.pth` from site-packages. When it sees that the script is a `.pyj` file, it replaces the process with `python -m pyj app.pyj` (on Windows it starts a child process instead). Interpreter flags are preserved on Python 3.10+; on 3.8 and 3.9 they are not passed on.
 
 From Python code:
 
@@ -123,7 +123,7 @@ code = pyj.compile_pyj(src, "file.pyj")   # code object with positions mapped to
 
 ## Error locations
 
-Runtime exceptions, syntax errors, `inspect.getsource` and `linecache` all point to the exact **line and column** in the `.pyj` source. This holds even when several statements share a line or one expression spans several lines:
+Runtime exceptions, syntax errors, `inspect.getsource` and `linecache` all point to the exact **line and column** in the `.pyj` source. This holds even when several statements share a line or one expression spans several lines (Python shows columns in tracebacks from 3.11; on 3.8–3.10 tracebacks point to the right line):
 
 ```
   File "util.pyj", line 3, in divide

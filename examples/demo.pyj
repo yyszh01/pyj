@@ -26,9 +26,6 @@ print(p.dist(q), [fib(i) for i in range(10)], classify(-5), classify(0), classif
 
 try { 1 / 0 } except ZeroDivisionError as e { print("caught:", e) } finally { print("finally") }
 
-def http(code) { match code { case 200 | 201 { return "ok" } case _ { return "err" } } }
-print(http(200), http(500))
-
 class Empty {}
 while False {}
 squares = {k: k * k for k in range(4)}

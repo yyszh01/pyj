@@ -489,11 +489,16 @@ def _map_syntax_error(e, smap, src, filename):
     lineno, offset = e.lineno or 1, (e.offset or 1)
     line, col = smap.map(lineno, offset - 1, byte_col=False)
     end_line = end_col = None
-    if e.end_lineno and e.end_offset:
-        end_line, end_col = smap.map(e.end_lineno, e.end_offset - 1, end=True, byte_col=False)
+    # end_lineno / end_offset exist since Python 3.10
+    e_end_line, e_end_off = getattr(e, "end_lineno", None), getattr(e, "end_offset", None)
+    if e_end_line and e_end_off:
+        end_line, end_col = smap.map(e_end_line, e_end_off - 1, end=True, byte_col=False)
         end_col += 1
     lines = src.splitlines()
     text = lines[line - 1] if 0 < line <= len(lines) else None
+    if sys.version_info < (3, 10):
+        # before 3.10 the details tuple has exactly 4 items
+        return SyntaxError(e.msg, (filename, line, col + 1, text))
     return SyntaxError(e.msg, (filename, line, col + 1, text, end_line, end_col))
 
 
@@ -614,14 +619,21 @@ def run_source(src, filename, argv, path0="", file=None):
         here = os.path.normcase(os.path.abspath(__file__))
         while tb is not None and os.path.normcase(os.path.abspath(tb.tb_frame.f_code.co_filename)) == here:
             tb = tb.tb_next
-        if sys.excepthook is sys.__excepthook__:
+        if sys.excepthook is sys.__excepthook__ or _is_apport_hook(sys.excepthook):
             # Before 3.13 the default excepthook is implemented in C and reads source lines only from
-            # disk, so it cannot see code from -c or stdin registered in linecache; the traceback module can
+            # disk, so it cannot see code from -c or stdin registered in linecache; the traceback module can.
+            # Ubuntu/Debian install apport's hook from sitecustomize; for code outside system packages it
+            # only hands over to the C hook, so it is treated like the default one.
             traceback.print_exception(type(e), e.with_traceback(tb), tb)
         else:
             sys.excepthook(type(e), e.with_traceback(tb), tb)
         return 1
     return 0
+
+
+def _is_apport_hook(hook):
+    """Ubuntu's crash reporter hook (apport_python_hook.install), which ends in the C excepthook."""
+    return getattr(getattr(hook, "func", hook), "__module__", None) == "apport_python_hook"
 
 
 def run_file(path, args=()):

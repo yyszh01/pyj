@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/yyszh01/pyj/actions/workflows/ci.yml/badge.svg)](https://github.com/yyszh01/pyj/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/pybrace)](https://pypi.org/project/pybrace/)
-![Python](https://img.shields.io/badge/python-3.10%2B-blue)
+![Python](https://img.shields.io/badge/python-3.8%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 [English](https://github.com/yyszh01/pyj/blob/main/README.md) | [简体中文](https://github.com/yyszh01/pyj/blob/main/README.zh-CN.md) | 日本語
@@ -10,7 +10,7 @@
 **コピペしても壊れない Python。** ブロックをインデントではなく `{ }` で書くので、チャットアプリや Web フォーム、テンプレート、シェルのワンライナーで空白が消えても、コードはそのまま動きます。`.pyj` ファイルは `python` で直接実行でき、普通のモジュールと同じように import でき、トレースバックは元のソースの行と列を指します。
 
 ```bash
-pip install pybrace      # Python 3.10 以上。PyPI 上の名前は pybrace、モジュールとコマンドは pyj
+pip install pybrace      # Python 3.8 以上。PyPI 上の名前は pybrace、モジュールとコマンドは pyj
 pyj -c 'for i in range(3) { if i % 2 { print(i, "奇数") } else { print(i, "偶数") } }'
 ```
 
@@ -52,7 +52,7 @@ if __name__ == "__main__":
 - **シェルのワンライナーにも**：`pyj -c 'for i in range(3) { print(i) }'` のように書くことも、`pyj` にパイプでコードを渡すこともできます。
 - **エラーはソースを指す**：トレースバック、構文エラー、`inspect.getsource` のすべてが `.pyj` の行と列を示します。
 - **辞書や集合はいつもどおり**：ブロックの `{` とリテラルの `{` を区別します。
-- **クロスプラットフォーム**：Python 3.10 以上。Linux・macOS・Windows で CI テストしています。
+- **クロスプラットフォーム**：Python 3.8 以上。Linux・macOS・Windows で CI テストしています。
 
 ## インストール
 
@@ -110,7 +110,7 @@ pyj build -c 'def f(x) { return x * 2 }'   # コードを変換した Python を
 - `.pyj` と `.py` のモジュールは互いに import できます。`foo.py` と `foo.pyj` が両方ある場合は `foo.pyj` が優先されます。
 - コンパイル結果は `__pycache__/<モジュール名>.pyj.cpython-XY.pyc` にキャッシュされます。ソースファイルか pyj 自体が変わるとキャッシュは無効になります。
 - `-c` や標準入力から実行したコードも、ファイルと同じようにエラー位置が示されます。トレースバックにはコードの該当行が表示されます。
-- `python app.pyj` の仕組み：Python は起動時に site-packages の `pyj_autoload.pth` を実行します。スクリプトが `.pyj` ファイルだと分かると、プロセスを `python -m pyj app.pyj` に置き換えます（Windows では代わりに子プロセスを起動します）。インタープリターのオプションはそのまま引き継がれます。
+- `python app.pyj` の仕組み：Python は起動時に site-packages の `pyj_autoload.pth` を実行します。スクリプトが `.pyj` ファイルだと分かると、プロセスを `python -m pyj app.pyj` に置き換えます（Windows では代わりに子プロセスを起動します）。Python 3.10 以上ではインタープリターのオプションがそのまま引き継がれます（3.8・3.9 では引き継がれません）。
 
 Python コードから使う場合：
 
@@ -123,7 +123,7 @@ code = pyj.compile_pyj(src, "file.pyj")   # 位置が .pyj ソースに対応付
 
 ## エラー位置
 
-実行時の例外、構文エラー、`inspect.getsource`、`linecache` のすべてが、`.pyj` ソースの正確な**行と列**を指します。複数の文が 1 行にある場合や、1 つの式が複数行にまたがる場合でも同様です：
+実行時の例外、構文エラー、`inspect.getsource`、`linecache` のすべてが、`.pyj` ソースの正確な**行と列**を指します。複数の文が 1 行にある場合や、1 つの式が複数行にまたがる場合でも同様です（トレースバックに列を表示するのは Python 3.11 からの機能で、3.8〜3.10 では正しい行を指します）：
 
 ```
   File "util.pyj", line 3, in divide

@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/yyszh01/pyj/actions/workflows/ci.yml/badge.svg)](https://github.com/yyszh01/pyj/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/pybrace)](https://pypi.org/project/pybrace/)
-![Python](https://img.shields.io/badge/python-3.10%2B-blue)
+![Python](https://img.shields.io/badge/python-3.8%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 [English](https://github.com/yyszh01/pyj/blob/main/README.md) | 简体中文 | [日本語](https://github.com/yyszh01/pyj/blob/main/README.ja.md)
@@ -10,7 +10,7 @@
 **复制粘贴也不会坏的 Python。** 代码块用 `{ }` 而不是缩进来写，代码被聊天软件、网页表单、模板或者命令行一行脚本吃掉了空格和缩进，照样能跑。`.pyj` 文件可以直接用 `python` 运行，像普通模块一样 import，报错直接指回源码的行号和列号。
 
 ```bash
-pip install pybrace      # 需要 Python 3.10+；PyPI 上叫 pybrace，模块和命令都叫 pyj
+pip install pybrace      # 需要 Python 3.8+；PyPI 上叫 pybrace，模块和命令都叫 pyj
 pyj -c 'for i in range(3) { if i % 2 { print(i, "奇数") } else { print(i, "偶数") } }'
 ```
 
@@ -52,7 +52,7 @@ if __name__ == "__main__":
 - **也能在命令行直接写**：`pyj -c 'for i in range(3) { print(i) }'`，或者用管道把代码传给 `pyj`。
 - **报错指回源码**：traceback、语法错误、`inspect.getsource` 都显示 `.pyj` 源码的行和列。
 - **字典、集合照常写**：能自动区分代码块的 `{` 和字面量的 `{`。
-- **跨平台**：Python 3.10+，在 Linux / macOS / Windows 上由 CI 测试。
+- **跨平台**：Python 3.8+，在 Linux / macOS / Windows 上由 CI 测试。
 
 ## 安装
 
@@ -110,7 +110,7 @@ pyj build -c 'def f(x) { return x * 2 }'   # 打印一段代码转换后的 Pyth
 - `.pyj` 和 `.py` 可以互相 import；同名时 `.pyj` 优先。
 - 编译结果缓存在 `__pycache__/<模块名>.pyj.cpython-XY.pyc`；源文件或 pyj 本身改动后会自动失效。
 - 用 `-c` 或标准输入执行的代码，报错定位和文件一样：traceback 会显示你的代码中出错的那一行。
-- `python app.pyj` 的原理：Python 启动时会执行 site-packages 中的 `pyj_autoload.pth`，它发现启动的是 `.pyj` 文件，就把进程替换成 `python -m pyj app.pyj`（Windows 上是启动子进程），解释器参数原样保留。
+- `python app.pyj` 的原理：Python 启动时会执行 site-packages 中的 `pyj_autoload.pth`，它发现启动的是 `.pyj` 文件，就把进程替换成 `python -m pyj app.pyj`（Windows 上是启动子进程）。Python 3.10+ 上解释器参数原样保留；3.8、3.9 上不会传过去。
 
 在 Python 代码里使用：
 
@@ -123,7 +123,7 @@ code = pyj.compile_pyj(src, "file.pyj")   # 位置已映射回源码的 code 对
 
 ## 报错定位
 
-运行时异常、语法错误、`inspect.getsource`、`linecache` 都直接指向 `.pyj` 源码的**行号和列号**，即使多条语句写在同一行、一个表达式跨了多行也一样准确：
+运行时异常、语法错误、`inspect.getsource`、`linecache` 都直接指向 `.pyj` 源码的**行号和列号**，即使多条语句写在同一行、一个表达式跨了多行也一样准确（traceback 里显示列号是 Python 3.11 才有的功能；3.8–3.10 上 traceback 指向正确的行）：
 
 ```
   File "util.pyj", line 3, in 除法
