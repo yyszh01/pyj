@@ -5,7 +5,8 @@ name: VS Code extension release
 # Tests and packages the extension, attaches the .vsix to a GitHub Release (no token needed),
 # and publishes it to Open VSX when the repository has an OVSX_PAT secret (skipped otherwise).
 # A push to main that changes this file creates the release for the current version when its
-# tag exists but the release does not (to retry without moving the tag).
+# tag exists but the release does not (to retry without moving the tag, as after the GitHub
+# outage of 2026-11-25 that made creating releases fail with HTTP 500).
 on:
   push:
     tags: ["vscode-v*"]

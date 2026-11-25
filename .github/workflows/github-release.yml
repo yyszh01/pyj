@@ -4,7 +4,8 @@ name: GitHub Release
 # attached, and that version's section of CHANGELOG.md as the notes.
 # - push of a v* tag (next to release.yml, which publishes to PyPI)
 # - push to main that changes this file: creates the release for the current version if it is
-#   missing (this is how 0.1.5 got its release)
+#   missing (this is how 0.1.5 got its release; the first tries on 2026-11-25 got HTTP 500 during a
+#   GitHub outage, so touching this file is also the way to retry)
 # - by hand: Actions -> GitHub Release -> Run workflow, with a tag such as v0.1.5
 on:
   push:
