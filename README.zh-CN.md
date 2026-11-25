@@ -197,6 +197,16 @@ pybraces 的定位是在 shell 里写单行脚本，有意采用了更严格的�
 
 [mayank-verma048/PyBrace](https://github.com/mayank-verma048/PyBrace)（2018）是一个基于 Python 2 的按行转换器：`{` 必须在行尾、`}` 必须单独一行，而且要先转成 `.py` 才能运行。[Bython](https://github.com/mathialo/bython) 是更早的同类项目，这里没有做对比。
 
+## 反馈
+
+pyj 还很年轻，接下来往哪个方向走，要看大家的反馈。
+
+- **发现 bug？** [提一个 issue](https://github.com/yyszh01/pyj/issues/new/choose)。表单会请你填写 pyj 和 Python 的版本，以及一小段能重现问题的 `.pyj` 代码。
+- **有问题、有想法，或者 pyj 帮你解决了什么？** 欢迎发到 [Discussions](https://github.com/yyszh01/pyj/discussions)。知道大家在什么场合用它，帮助最大。
+- 中文、English、日本語都可以。
+
+如果 pyj 对你有用，在 GitHub 上点个 ⭐ 能让更多人找到它。
+
 ## 开发
 
 ```bash

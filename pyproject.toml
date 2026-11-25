@@ -31,6 +31,8 @@ classifiers = [
 [project.urls]
 Homepage = "https://github.com/yyszh01/pyj"
 Issues = "https://github.com/yyszh01/pyj/issues"
+Discussions = "https://github.com/yyszh01/pyj/discussions"
+Changelog = "https://github.com/yyszh01/pyj/blob/main/CHANGELOG.md"
 Source = "https://github.com/yyszh01/pyj"
 
 [project.scripts]
@@ -47,4 +49,4 @@ only-include = ["pyj.py"]
 "pyj_autoload.pth" = "pyj_autoload.pth"
 
 [tool.hatch.build.targets.sdist]
-include = ["pyj.py", "pyj_autoload.pth", "tests/", "examples/", "README.md", "README.zh-CN.md", "README.ja.md", "LICENSE"]
+include = ["pyj.py", "pyj_autoload.pth", "tests/", "examples/", "README.md", "README.zh-CN.md", "README.ja.md", "CHANGELOG.md", "LICENSE"]

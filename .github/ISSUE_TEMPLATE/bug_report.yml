@@ -1,0 +1,67 @@
+name: Bug report
+description: pyj converts or runs something wrong, crashes, or points an error to the wrong place
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! English, 中文 and 日本語 are all fine.
+        Not sure it is a bug, or just have a question? [Discussions](https://github.com/yyszh01/pyj/discussions) is a good place too.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, and what went wrong?
+    validations:
+      required: true
+  - type: textarea
+    id: code
+    attributes:
+      label: A small .pyj snippet that shows it
+      description: The smaller the better. `pyj build -c '...'` prints the Python that pyj generates, which often helps.
+      render: python
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Command and output
+      description: The command you ran and its full output or traceback.
+      render: shell
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+  - type: input
+    id: pyj-version
+    attributes:
+      label: pyj version
+      description: "`pyj --version` (or `python -c \"import pyj; print(pyj.__version__)\"`)"
+      placeholder: pyj 0.1.5
+    validations:
+      required: true
+  - type: input
+    id: python-version
+    attributes:
+      label: Python version
+      description: "`python --version`"
+      placeholder: Python 3.12.3
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options: [Linux, macOS, Windows, Other]
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How is pyj installed?
+      options:
+        - pip install pybrace
+        - python pyj.py install (the installer)
+        - In a virtual environment
+        - pipx
+        - Not installed (running pyj.py directly)

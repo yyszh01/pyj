@@ -197,6 +197,16 @@ pybraces is designed for shell one-liners and uses its own, deliberately stricte
 
 [mayank-verma048/PyBrace](https://github.com/mayank-verma048/PyBrace) (2018) is a Python 2 line-based converter: `{` must end a line and `}` must stand on its own line, and files must be converted to `.py` before running. [Bython](https://github.com/mathialo/bython) is earlier prior art; it is not compared here.
 
+## Feedback
+
+pyj is young, and feedback decides where it goes next.
+
+- **Found a bug?** [Open an issue](https://github.com/yyszh01/pyj/issues/new/choose). The form asks for your pyj and Python versions and a small `.pyj` snippet.
+- **A question, an idea, or a place where pyj saved you?** Post in [Discussions](https://github.com/yyszh01/pyj/discussions). Hearing how you use it helps the most.
+- English, 中文 and 日本語 are all welcome.
+
+If pyj is useful to you, a ⭐ on GitHub helps others find it.
+
 ## Development
 
 ```bash

@@ -197,6 +197,16 @@ pybraces はシェルのワンライナー向けに設計されており、意�
 
 [mayank-verma048/PyBrace](https://github.com/mayank-verma048/PyBrace)（2018）は Python 2 による行単位の変換ツールです。`{` は行末に、`}` は単独の行に置く必要があり、実行前にファイルを `.py` に変換しなければなりません。[Bython](https://github.com/mathialo/bython) はより早い時期の先行プロジェクトですが、ここでは比較していません。
 
+## フィードバック
+
+pyj はまだ若いプロジェクトです。これからの方向は、みなさんのフィードバックで決まります。
+
+- **バグを見つけたら** [issue を作成](https://github.com/yyszh01/pyj/issues/new/choose)してください。フォームで pyj と Python のバージョン、問題を再現する小さな `.pyj` コードをお聞きします。
+- **質問やアイデア、pyj が役に立った場面など**は [Discussions](https://github.com/yyszh01/pyj/discussions) へどうぞ。どんな場面で使われているかを知るのが一番参考になります。
+- 日本語・English・中文、どれでも歓迎です。
+
+pyj が役に立ったら、GitHub で ⭐ を付けていただけると、ほかの人にも見つけてもらいやすくなります。
+
 ## 開発
 
 ```bash

@@ -1,0 +1,27 @@
+name: Feature request
+description: Suggest new syntax, a command-line option, editor support, or anything else
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        English, 中文 and 日本語 are all fine. For open-ended ideas, [Discussions](https://github.com/yyszh01/pyj/discussions) works well too.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The situation or problem. Knowing where you use pyj helps a lot.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like pyj to do?
+      description: If it is about syntax, show the .pyj you would like to write and the Python it should mean.
+      render: python
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Anything you have tried or considered instead?
