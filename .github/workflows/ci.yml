@@ -39,6 +39,7 @@ jobs:
         run: python pyj.py run examples/demo.pyj
         # match / case: 3.10+ only
       - name: match example (3.10+)
+        if: ${{ !contains(fromJSON('["3.8", "3.9"]'), matrix.python) }}
         run: python pyj.py run examples/match.pyj
 
       - name: Transparent execution after pip install
