@@ -4,9 +4,10 @@ name: VS Code extension release
 #   git tag vscode-v0.1.0 && git push origin vscode-v0.1.0
 # Tests and packages the extension, attaches the .vsix to a GitHub Release (no token needed),
 # and publishes it to Open VSX when the repository has an OVSX_PAT secret (skipped otherwise).
-# A push to main that changes this file creates the release for the current version when its
-# tag exists but the release does not (to retry without moving the tag, as after the GitHub
-# outage of 2026-11-25 that made creating releases fail with HTTP 500).
+# A push to main that changes this file finishes the current version when its tag exists:
+# it creates the release if missing (to retry without moving the tag, as after the GitHub
+# outage of 2026-11-25 that made creating releases fail with HTTP 500), and publishes the
+# release's .vsix to Open VSX if that version is not there yet (as when OVSX_PAT was added later).
 on:
   push:
     tags: ["vscode-v*"]
@@ -39,15 +40,25 @@ jobs:
           fi
           version=$(node -p "require('./vscode/package.json').version")
           [ "vscode-v$version" = "$tag" ] || { echo "Tag $tag does not match vscode/package.json ($version)"; exit 1; }
-          if gh release view "$tag" >/dev/null 2>&1; then
-            echo "Release $tag already exists"; echo "go=false" >> "$GITHUB_OUTPUT"; exit 0
-          fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "go=true" >> "$GITHUB_OUTPUT"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists"; echo "go=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          fi
+          publisher=$(node -p "require('./vscode/package.json').publisher")
+          name=$(node -p "require('./vscode/package.json').name")
+          if [ -z "$OVSX_PAT" ]; then
+            echo "No OVSX_PAT secret: not publishing to Open VSX"; echo "ovsx=false" >> "$GITHUB_OUTPUT"
+          elif [ "$(curl -s -o /dev/null -w '%{http_code}' "https://open-vsx.org/api/$publisher/$name/$version")" = 200 ]; then
+            echo "$publisher.$name $version is already on Open VSX"; echo "ovsx=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ovsx=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - uses: actions/setup-node@v5
-        if: steps.v.outputs.go == 'true'
+        if: steps.v.outputs.go == 'true' || steps.v.outputs.ovsx == 'true'
         with:
           node-version: 22
       - uses: actions/setup-python@v6
@@ -93,8 +104,11 @@ jobs:
           echo "$out"
 
       - name: Publish to Open VSX
-        if: steps.v.outputs.go == 'true' && env.OVSX_PAT != ''
+        if: steps.v.outputs.ovsx == 'true'
         working-directory: vscode
         run: |
+          # the release already existed: publish the very .vsix attached to it
+          [ -f "pyj-${{ steps.v.outputs.version }}.vsix" ] || gh release download "${{ steps.v.outputs.tag }}" -p "*.vsix"
+          [ -d node_modules ] || npm ci --ignore-scripts
           npx --no-install ovsx create-namespace "$(node -p "require('./package.json').publisher")" || echo "(namespace already exists)"
           npx --no-install ovsx publish --packagePath "pyj-${{ steps.v.outputs.version }}.vsix"
